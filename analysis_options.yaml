@@ -1,0 +1,18 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: false
+  errors:
+    # SQL dan label UI berbahasa Indonesia sering memakai string panjang.
+    lines_longer_than_80_chars: ignore
+  exclude:
+    - build/**
+    - android/**
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    avoid_print: true
+    always_declare_return_types: true
+    unawaited_futures: true

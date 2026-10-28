@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Dibutuhkan Flutter tooling (hot reload, debugger). Tidak ada di build rilis. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
