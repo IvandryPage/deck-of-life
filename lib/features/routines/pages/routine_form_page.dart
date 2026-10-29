@@ -37,7 +37,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
   bool _saving = false;
   String? _weekdayError;
 
-  static const List<String> _dayLabels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  static const List<String> _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   @override
   void initState() {
@@ -71,7 +71,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
   Future<void> _save() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (_type == RecurrenceType.weekly && _weekdays.isEmpty) {
-      setState(() => _weekdayError = 'Pilih minimal satu hari');
+      setState(() => _weekdayError = 'Select at least one day');
       return;
     }
     if (!valid) return;
@@ -118,7 +118,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
       Get.find<DataRevision>().bump();
       final msg = result.reminder?.message;
       Get.back<void>();
-      AppToast.show(msg ?? 'Rutinitas tersimpan', isError: msg != null);
+      AppToast.show(msg ?? 'Routine saved', isError: msg != null);
     } catch (err, st) {
       AppLog.error('routine.save', err, st);
       if (mounted) setState(() => _saving = false);
@@ -130,9 +130,9 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
     final r = _existing!;
     final ok = await confirmDialog(
       context,
-      title: 'Hapus rutinitas?',
-      message: '"${r.title}" beserta riwayat pelaksanaannya akan dihapus.',
-      confirmLabel: 'Hapus',
+      title: 'Delete routine?',
+      message: '"${r.title}" and its completion history will be deleted.',
+      confirmLabel: 'Delete',
       destructive: true,
     );
     if (!ok) return;
@@ -140,7 +140,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
       await Get.find<DeleteRoutine>()(r.id);
       Get.find<DataRevision>().bump();
       Get.back<void>();
-      AppToast.show('Rutinitas dihapus');
+      AppToast.show('Routine deleted');
     } catch (e) {
       AppToast.show(messageOf(e), isError: true);
     }
@@ -155,14 +155,14 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
   Widget build(BuildContext context) {
     final isNew = _existing == null;
     return FormPage(
-      title: isNew ? 'Rutinitas baru' : 'Ubah rutinitas',
+      title: isNew ? 'New routine' : 'Edit routine',
       formKey: _formKey,
       onSave: _save,
       saving: _saving,
       actions: [
         if (!isNew)
           IconButton(
-            tooltip: 'Hapus',
+            tooltip: 'Delete routine',
             icon: const Icon(Icons.delete_outline),
             onPressed: _delete,
           ),
@@ -174,14 +174,14 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
           textCapitalization: TextCapitalization.sentences,
           style: Theme.of(context).textTheme.titleMedium,
           decoration: const InputDecoration(
-            labelText: 'Nama rutinitas',
-            helperText: 'mis. Bersih-bersih kost',
+            labelText: 'Routine name',
+            helperText: 'e.g. Tidy your room',
           ),
           validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'Nama rutinitas wajib diisi' : null,
+              (v == null || v.trim().isEmpty) ? 'Routine name is required' : null,
         ),
         EnumDropdown<RecurrenceType>(
-          label: 'Pola jadwal',
+          label: 'Repeat pattern',
           value: _type,
           items: RecurrenceType.values,
           labelOf: (t) => t.label,
@@ -193,12 +193,12 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: const InputDecoration(
-              labelText: 'Setiap berapa hari',
-              suffixText: 'hari',
+              labelText: 'Repeat every',
+              suffixText: 'days',
             ),
             validator: (v) {
               final n = int.tryParse(v?.trim() ?? '');
-              return (n == null || n < 1) ? 'Minimal 1 hari' : null;
+              return (n == null || n < 1) ? 'At least 1 day' : null;
             },
           ),
         if (_type == RecurrenceType.weekly)
@@ -232,7 +232,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
           ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Ingatkan saat jatuh tempo'),
+          title: const Text('Remind me when it is due'),
           value: _remind,
           onChanged: (v) => setState(() => _remind = v),
         ),
@@ -241,23 +241,23 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
           children: [
             InputDecorator(
               decoration: const InputDecoration(
-                labelText: 'Jam',
+                labelText: 'Time',
                 helperText:
-                    'Tanpa jam = jatuh tempo sepanjang hari, pengingat pukul 08:00',
+                    'Leave blank for an all-day due date; reminders default to 8:00 AM',
               ),
               child: Row(
                 children: [
-                  Expanded(child: Text(_time ?? 'Tidak diatur')),
+                  Expanded(child: Text(_time ?? 'Not set')),
                   TextButton(
                     onPressed: () async {
                       final t = await pickHhmm(context, initial: _time);
                       if (t != null) setState(() => _time = t);
                     },
-                    child: const Text('Pilih'),
+                    child: const Text('Choose'),
                   ),
                   if (_time != null)
                     IconButton(
-                      tooltip: 'Hapus jam',
+                      tooltip: 'Clear time',
                       icon: const Icon(Icons.clear),
                       onPressed: () => setState(() => _time = null),
                     ),
@@ -267,8 +267,8 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
             if (!isNew)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Aktif'),
-                subtitle: const Text('Rutinitas nonaktif tidak muncul di beranda'),
+                title: const Text('Active'),
+                subtitle: const Text('Inactive routines are hidden from Home'),
                 value: _active,
                 onChanged: (v) => setState(() => _active = v),
               ),
@@ -278,7 +278,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
               maxLines: 4,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: 'Catatan',
+                labelText: 'Notes',
                 alignLabelWithHint: true,
               ),
             ),

@@ -121,7 +121,7 @@ void main() {
   });
 
   group('TaskTile', () {
-    testWidgets('tugas terlambat diberi tag teks "Terlambat"', (tester) async {
+    testWidgets('tugas terlambat diberi tag teks "Overdue"', (tester) async {
       final t = makeTask(
         'a',
         due: DateTime.now().subtract(const Duration(days: 2)),
@@ -129,7 +129,7 @@ void main() {
       await tester.pumpWidget(
         host(TaskTile(task: t, onTap: () {}, onToggleDone: () {})),
       );
-      expect(find.text('Terlambat'), findsOneWidget);
+      expect(find.text('Overdue'), findsOneWidget);
     });
 
     testWidgets('ketuk kotak centang memanggil onToggleDone', (tester) async {
@@ -160,7 +160,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('tugas selesai dicoret dan label semantik menyebut "selesai"', (
+    testWidgets('tugas selesai dicoret dan label semantik menyebut "done"', (
       tester,
     ) async {
       final t = makeTask('a', status: TaskStatus.done);
@@ -168,7 +168,7 @@ void main() {
         host(TaskTile(task: t, onTap: () {}, onToggleDone: () {})),
       );
       final handle = tester.ensureSemantics();
-      expect(find.bySemanticsLabel(RegExp('selesai')), findsWidgets);
+      expect(find.bySemanticsLabel(RegExp('done')), findsWidgets);
       handle.dispose();
     });
   });
@@ -240,10 +240,10 @@ void formTests() {
         host(const AdvancedOptions(children: [TextField(key: Key('adv'))])),
       );
       expect(find.byKey(const Key('adv')), findsNothing);
-      await tester.tap(find.text('Opsi lanjutan'));
+      await tester.tap(find.text('More options'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('adv')), findsOneWidget);
-      await tester.tap(find.textContaining('Sembunyikan'));
+      await tester.tap(find.textContaining('Hide'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('adv')), findsNothing);
     });
@@ -274,7 +274,7 @@ void formTests() {
           ),
         );
         await tester.pumpWidget(page(false));
-        await tester.tap(find.text('Simpan'));
+        await tester.tap(find.text('Save'));
         expect(saved, 1);
         await tester.pumpWidget(page(true));
         await tester.tap(find.byType(FilledButton), warnIfMissed: false);

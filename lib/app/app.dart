@@ -28,9 +28,9 @@ class DeckOfLifeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(Brightness.light),
       darkTheme: buildAppTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
-      locale: const Locale('id', 'ID'),
-      supportedLocales: const [Locale('id', 'ID'), Locale('en')],
+      themeMode: ThemeMode.light,
+      locale: const Locale('en', 'US'),
+      supportedLocales: const [Locale('en', 'US')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -45,7 +45,7 @@ class DeckOfLifeApp extends StatelessWidget {
   }
 }
 
-/// Ditampilkan bila database tidak bisa dibuka; menghindari layar kosong/crash.
+/// Shown when the database cannot be opened.
 class StartupErrorApp extends StatelessWidget {
   const StartupErrorApp({super.key, required this.message});
 
@@ -67,7 +67,7 @@ class StartupErrorApp extends StatelessWidget {
                   const Icon(Icons.error_outline, size: 48),
                   const SizedBox(height: 16),
                   Text(
-                    'Aplikasi tidak bisa dimulai',
+                    'Could not start the app',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),

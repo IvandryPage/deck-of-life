@@ -14,11 +14,11 @@ class AgendaPage extends GetView<AgendaController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Agenda')),
+      appBar: AppBar(title: const Text('Calendar')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed<dynamic>(Routes.eventForm),
         icon: const Icon(Icons.add),
-        label: const Text('Agenda baru'),
+        label: const Text('New event'),
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
@@ -34,9 +34,9 @@ class AgendaPage extends GetView<AgendaController> {
         if (events.isEmpty) {
           return EmptyState(
             icon: Icons.event_outlined,
-            title: 'Belum ada agenda mendatang',
-            message: 'Cukup judul dan waktu mulai.',
-            actionLabel: 'Agenda baru',
+            title: 'No upcoming events',
+            message: 'A title and start time are all you need.',
+            actionLabel: 'Add event',
             onAction: () => Get.toNamed<dynamic>(Routes.eventForm),
           );
         }
@@ -61,7 +61,7 @@ class AgendaPage extends GetView<AgendaController> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                   child: Text(
                     DateTimeUtils.isSameDay(day, today)
-                        ? 'Hari ini · ${Formatters.dateShort(day)}'
+                        ? 'Today · ${Formatters.dateShort(day)}'
                         : Formatters.dateShort(day),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
@@ -78,11 +78,11 @@ class AgendaPage extends GetView<AgendaController> {
                     ),
                     confirmDismiss: (_) => confirmDialog(
                       context,
-                      title: 'Hapus agenda?',
+                      title: 'Delete event?',
                       message: e.isRecurring
-                          ? 'Seluruh rangkaian "${e.title}" dan pengingatnya akan dihapus.'
-                          : '"${e.title}" dan pengingatnya akan dihapus.',
-                      confirmLabel: 'Hapus',
+                          ? 'The entire "${e.title}" series and its reminder will be deleted.'
+                          : '"${e.title}" and its reminder will be deleted.',
+                      confirmLabel: 'Delete',
                       destructive: true,
                     ),
                     onDismissed: (_) => controller.remove(e),
@@ -98,9 +98,9 @@ class AgendaPage extends GetView<AgendaController> {
                       subtitle: Text(
                         [
                           e.eventType.label,
-                          if (e.isRecurring) 'Berulang',
+                          if (e.isRecurring) 'Repeats',
                           if (e.endsAt != null)
-                            's.d. ${Formatters.time(e.endsAt!)}',
+                            'Until ${Formatters.time(e.endsAt!)}',
                           if (e.location != null) e.location!,
                         ].join(' · '),
                       ),

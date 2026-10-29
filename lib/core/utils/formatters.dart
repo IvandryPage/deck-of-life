@@ -1,14 +1,14 @@
 import 'package:intl/intl.dart';
 
-/// Format tampilan. Membutuhkan `initializeDateFormatting('id_ID')` di main().
+/// Display formatting. Requires `initializeDateFormatting('en_US')` in main().
 class Formatters {
   const Formatters._();
 
-  static final NumberFormat _rupiah = NumberFormat.decimalPattern('id_ID');
-  static final DateFormat _date = DateFormat('d MMM yyyy', 'id_ID');
-  static final DateFormat _dateShort = DateFormat('EEE, d MMM', 'id_ID');
-  static final DateFormat _time = DateFormat('HH:mm', 'id_ID');
-  static final DateFormat _dateTime = DateFormat('d MMM yyyy, HH:mm', 'id_ID');
+  static final NumberFormat _rupiah = NumberFormat.decimalPattern('en_US');
+  static final DateFormat _date = DateFormat('MMM d, yyyy', 'en_US');
+  static final DateFormat _dateShort = DateFormat('EEE, MMM d', 'en_US');
+  static final DateFormat _time = DateFormat('h:mm a', 'en_US');
+  static final DateFormat _dateTime = DateFormat('MMM d, yyyy, h:mm a', 'en_US');
 
   /// Nominal integer rupiah. Nilai negatif ditampilkan sebagai kekurangan.
   static String rupiah(int value) {

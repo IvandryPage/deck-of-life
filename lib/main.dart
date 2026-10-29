@@ -9,7 +9,7 @@ import 'data/repositories/routine_repository_impl.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('id_ID');
+  await initializeDateFormatting('en_US');
 
   final AppDatabase db;
   try {

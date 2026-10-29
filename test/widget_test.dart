@@ -10,7 +10,7 @@ void main() {
       const StartupErrorApp(message: 'Database unavailable'),
     );
 
-    expect(find.text('Aplikasi tidak bisa dimulai'), findsOneWidget);
+    expect(find.text('Could not start the app'), findsOneWidget);
     expect(find.text('Database unavailable'), findsOneWidget);
   });
 }

@@ -42,6 +42,6 @@ class AgendaController extends GetxController with DataMutations {
   /// hilang dari pohon pada frame yang sama dengan `onDismissed`.
   Future<bool> remove(Event e) {
     events.removeWhere((x) => x.id == e.id);
-    return mutate(() => _deleteEvent(e.id), success: 'Agenda dihapus');
+    return mutate(() => _deleteEvent(e.id), success: 'Event deleted');
   }
 }

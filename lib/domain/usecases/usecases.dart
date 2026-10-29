@@ -7,22 +7,20 @@ import '../../core/utils/date_time_utils.dart';
 import '../entities/recurrence.dart';
 import 'reminder_coordinator.dart';
 
-/// Use case: logika yang menyentuh lebih dari satu repository, atau yang punya
-/// efek samping pengingat. Pembacaan/penulisan sederhana dipanggil controller
-/// langsung ke repository (TDD bagian 3: use case boleh tetap sederhana).
+/// Use cases coordinate multiple repositories or reminder side effects.
 
 class SaveResult<T> {
   const SaveResult(this.value, [this.reminder]);
 
   final T value;
 
-  /// Hasil penjadwalan pengingat bila ada (UI menampilkan [ReminderOutcome.message]).
+  /// Reminder scheduling result, if any.
   final ReminderOutcome? reminder;
 }
 
 void _requireText(String value, String fieldName) {
   if (value.trim().isEmpty) {
-    throw ValidationException('$fieldName tidak boleh kosong.');
+    throw ValidationException('$fieldName cannot be empty.');
   }
 }
 
@@ -65,7 +63,7 @@ class SaveSavedItem {
     required bool isNew,
     DateTime? reminderAt,
   }) async {
-    _requireText(item.title, 'Judul');
+    _requireText(item.title, 'Title');
     if (isNew) {
       await _repo.create(item);
     } else {
@@ -122,9 +120,9 @@ class SaveTask {
     DateTime? reminderAt,
     List<String> savedItemIds = const [],
   }) async {
-    _requireText(task.title, 'Judul tugas');
+    _requireText(task.title, 'Task title');
     if (task.estimatedMinutes != null && task.estimatedMinutes! < 0) {
-      throw const ValidationException('Estimasi durasi tidak boleh negatif.');
+      throw const ValidationException('Estimated duration cannot be negative.');
     }
     if (isNew) {
       await _tasks.create(task, savedItemIds: savedItemIds);
@@ -202,11 +200,11 @@ class RescheduleTask {
 
   Future<void> call(String taskId, int days, {DateTime? now}) async {
     if (days < 1) {
-      throw const ValidationException('Pilih tanggal di masa depan.');
+      throw const ValidationException('Choose a future date.');
     }
     final task = await _tasks.getById(taskId);
     if (task == null) {
-      throw const ValidationException('Tugas tidak ditemukan.');
+      throw const ValidationException('Task not found.');
     }
     final n = now ?? DateTime.now();
     final oldReminder = await _reminders.getForTarget(
@@ -252,10 +250,10 @@ class SaveEvent {
     required bool isNew,
     DateTime? reminderAt,
   }) async {
-    _requireText(event.title, 'Judul agenda');
+    _requireText(event.title, 'Event title');
     if (event.endsAt != null && event.endsAt!.isBefore(event.startsAt)) {
       throw const ValidationException(
-        'Waktu selesai tidak boleh sebelum waktu mulai.',
+        'End time cannot be before start time.',
       );
     }
     if (isNew) {
@@ -301,9 +299,9 @@ class SaveBill {
     required bool isNew,
     DateTime? reminderAt,
   }) async {
-    _requireText(bill.title, 'Nama tagihan');
+    _requireText(bill.title, 'Bill name');
     if (bill.amount <= 0) {
-      throw const ValidationException('Nominal tagihan harus lebih dari 0.');
+      throw const ValidationException('Bill amount must be greater than 0.');
     }
     if (isNew) {
       await _finance.createBill(bill);
@@ -383,7 +381,7 @@ class MarkBillPaid {
     final undo = _undo;
     if (undo == null) {
       throw const ValidationException(
-        'Tidak ada pembayaran yang bisa diurungkan.',
+        'There is no payment to undo.',
       );
     }
     final reminderIds = await _finance.undoBillPayment(
@@ -441,14 +439,14 @@ class SaveRoutine {
     required bool isNew,
     required bool remind,
   }) async {
-    _requireText(routine.title, 'Nama rutinitas');
+    _requireText(routine.title, 'Routine name');
     if (routine.recurrenceType == RecurrenceType.interval &&
         (routine.intervalDays == null || routine.intervalDays! < 1)) {
-      throw const ValidationException('Interval hari minimal 1.');
+      throw const ValidationException('Repeat interval must be at least 1 day.');
     }
     if (routine.recurrenceType == RecurrenceType.weekly &&
         routine.weekdays.isEmpty) {
-      throw const ValidationException('Pilih minimal satu hari.');
+      throw const ValidationException('Select at least one day.');
     }
 
     var saved = routine;

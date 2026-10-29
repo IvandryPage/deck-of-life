@@ -5,12 +5,11 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/utils/formatters.dart';
 import '../../home/controllers/home_controller.dart';
 
-/// Pemulihan: tugas yang lewat deadline ditangani satu per satu tanpa form.
-/// Pilihan: selesai, besok, akhir pekan, atau batalkan.
+/// Recovery flow for overdue tasks: complete, reschedule, or cancel each task.
 class OverduePage extends GetView<HomeController> {
   const OverduePage({super.key});
 
-  /// Hari sampai Sabtu berikutnya (minimal 1).
+  /// Days until next Saturday (at least one).
   static int daysToWeekend(DateTime now) {
     final d = (DateTime.saturday - now.weekday) % 7;
     return d == 0 ? 7 : d;
@@ -19,11 +18,11 @@ class OverduePage extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tugas terlewat')),
+      appBar: AppBar(title: const Text('Overdue tasks')),
       body: Obx(() {
         final tasks = controller.data.value?.overdueTasks ?? const [];
         if (tasks.isEmpty) {
-          return const Center(child: Text('Tidak ada tugas terlewat.'));
+          return const Center(child: Text('No overdue tasks.'));
         }
         final now = DateTime.now();
         return ListView.builder(
@@ -44,23 +43,23 @@ class OverduePage extends GetView<HomeController> {
                       child: Text(t.title,
                           style: Theme.of(context).textTheme.titleMedium),
                     ),
-                    Text('Tenggat ${Formatters.dateTime(t.dueAt!)}'),
+                    Text('Due ${Formatters.dateTime(t.dueAt!)}'),
                     Wrap(spacing: 8, children: [
                       ActionChip(
-                        label: const Text('Selesai'),
+                        label: const Text('Done'),
                         onPressed: () => controller.completeTask(t.id),
                       ),
                       ActionChip(
-                        label: const Text('Besok'),
+                        label: const Text('Tomorrow'),
                         onPressed: () => controller.moveTask(t.id, 1),
                       ),
                       ActionChip(
-                        label: const Text('Akhir pekan'),
+                        label: const Text('This weekend'),
                         onPressed: () =>
                             controller.moveTask(t.id, daysToWeekend(now)),
                       ),
                       ActionChip(
-                        label: const Text('Batalkan'),
+                        label: const Text('Cancel'),
                         onPressed: () => controller.dropTask(t.id),
                       ),
                     ]),

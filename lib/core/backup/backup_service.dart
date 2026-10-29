@@ -12,7 +12,10 @@ import '../utils/date_time_utils.dart';
 import 'backup_validator.dart';
 
 class RestoreResult {
-  const RestoreResult({required this.restoredRows, required this.safetyBackupPath});
+  const RestoreResult({
+    required this.restoredRows,
+    required this.safetyBackupPath,
+  });
 
   final int restoredRows;
 
@@ -30,8 +33,8 @@ class BackupService {
     this._db, {
     Future<void> Function()? onRestored,
     Future<Directory> Function()? backupDirectory,
-  })  : _onRestored = onRestored,
-        _backupDirectory = backupDirectory ?? getApplicationDocumentsDirectory;
+  }) : _onRestored = onRestored,
+       _backupDirectory = backupDirectory ?? getApplicationDocumentsDirectory;
 
   final AppDatabase _db;
   final Future<void> Function()? _onRestored;
@@ -74,7 +77,10 @@ class BackupService {
       rethrow;
     } catch (e, st) {
       AppLog.error('backup.export', e, st);
-      throw LocalDatabaseException('Backup gagal dibuat. Coba lagi.', e);
+      throw LocalDatabaseException(
+        'Could not create the backup. Please try again.',
+        e,
+      );
     }
   }
 
@@ -88,9 +94,9 @@ class BackupService {
 
   /// Memeriksa teks backup tanpa mengubah apa pun (untuk pratinjau sebelum restore).
   ParsedBackup inspect(String jsonText) => BackupValidator.parse(
-        jsonText,
-        currentSchemaVersion: AppDatabase.schemaVersion,
-      );
+    jsonText,
+    currentSchemaVersion: AppDatabase.schemaVersion,
+  );
 
   /// Mengganti SELURUH data aktif dengan isi backup.
   /// Pemanggil wajib sudah meminta konfirmasi eksplisit pengguna.
@@ -116,8 +122,8 @@ class BackupService {
     } on DatabaseException catch (e, st) {
       AppLog.error('backup.restore', e, st);
       throw ImportValidationException(
-        'Restore dibatalkan karena ada data yang tidak valid. '
-        'Data Anda saat ini tidak berubah.',
+        'Restore was canceled because the backup contains invalid data. '
+        'Your current data has not changed.',
         e,
       );
     }
@@ -151,8 +157,8 @@ class BackupService {
     } catch (e, st) {
       AppLog.error('backup.safety', e, st);
       throw LocalDatabaseException(
-        'Backup pengaman gagal dibuat, jadi restore dibatalkan. '
-        'Periksa ruang penyimpanan lalu coba lagi.',
+        'The safety backup could not be created, so the restore was canceled. '
+        'Check the available storage and try again.',
         e,
       );
     }

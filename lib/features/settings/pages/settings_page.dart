@@ -13,12 +13,12 @@ class SettingsPage extends GetView<SettingsController> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengaturan')),
+      appBar: AppBar(title: const Text('Settings')),
       body: Obx(
         () => ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
-            const _Header('Pengingat'),
+            const _Header('Reminders'),
             ListTile(
               leading: Icon(
                 controller.notificationsEnabled.value
@@ -27,26 +27,26 @@ class SettingsPage extends GetView<SettingsController> {
               ),
               title: Text(
                 controller.notificationsEnabled.value
-                    ? 'Notifikasi aktif'
-                    : 'Notifikasi belum diizinkan',
+                    ? 'Notifications are on'
+                    : 'Notifications are not allowed',
               ),
               subtitle: Text(
                 controller.notificationsEnabled.value
-                    ? 'Android dapat menunda notifikasi saat hemat baterai; waktunya tidak dijamin tepat detik.'
-                    : 'Tanpa izin ini, deadline, tagihan, dan rutinitas tidak akan membunyikan pengingat. Data tetap tersimpan.',
+                    ? 'Battery saver may delay notifications, so exact delivery times are not guaranteed.'
+                    : 'Without permission, task and bill reminders will not alert you. Your data is still saved.',
               ),
               trailing: controller.notificationsEnabled.value
                   ? null
                   : FilledButton.tonal(
                       onPressed: controller.requestNotificationPermission,
-                      child: const Text('Izinkan'),
+                      child: const Text('Allow'),
                     ),
             ),
             SwitchListTile(
               secondary: const Icon(Icons.fact_check_outlined),
-              title: const Text('Tinjau tugas setelah kerja'),
+              title: const Text('Review tasks after work'),
               subtitle: Text(
-                'Pengingat harian pukul ${controller.postWorkTime.value} untuk melihat kembali agenda dan deadline',
+                'Daily reminder at ${controller.postWorkTime.value} to review your schedule and deadlines',
               ),
               value: controller.postWorkEnabled.value,
               onChanged: controller.setPostWork,
@@ -54,7 +54,7 @@ class SettingsPage extends GetView<SettingsController> {
             ListTile(
               enabled: controller.postWorkEnabled.value,
               leading: const SizedBox(width: 24),
-              title: const Text('Jam tinjauan'),
+              title: const Text('Review time'),
               trailing: Text(controller.postWorkTime.value),
               onTap: () async {
                 final t = await pickHhmm(context, initial: controller.postWorkTime.value);
@@ -62,42 +62,42 @@ class SettingsPage extends GetView<SettingsController> {
               },
             ),
             const Divider(),
-            const _Header('Backup & pemulihan'),
+            const _Header('Backup & restore'),
             ListTile(
               leading: const Icon(Icons.upload_file_outlined),
-              title: const Text('Ekspor backup'),
+              title: const Text('Export backup'),
               subtitle: const Text(
-                'Membuat berkas JSON berisi semua data. Berkas ini TIDAK terenkripsi dan berisi informasi pribadi; bagikan hanya ke tempat yang Anda percaya.',
+                'Creates a JSON file with all your data. It is not encrypted and contains personal information; only share it with places you trust.',
               ),
               enabled: !controller.busy.value,
               onTap: () async {
                 final ok = await confirmDialog(
                   context,
-                  title: 'Ekspor backup?',
+                  title: 'Export backup?',
                   message:
-                      'Berkas backup berisi semua catatan, tugas, dan data keuangan Anda tanpa enkripsi. Simpan di tempat yang aman.',
-                  confirmLabel: 'Lanjut',
+                      'The backup contains all your notes, tasks, and financial data without encryption. Store it somewhere safe.',
+                  confirmLabel: 'Continue',
                 );
                 if (ok) await controller.exportBackup();
               },
             ),
             ListTile(
               leading: const Icon(Icons.restore_outlined),
-              title: const Text('Pulihkan dari backup'),
+              title: const Text('Restore from backup'),
               subtitle: const Text(
-                'Mengganti SEMUA data saat ini dengan isi berkas backup. Backup pengaman dibuat otomatis lebih dulu.',
+                'Replaces all current data with the backup. A safety backup is created first.',
               ),
               enabled: !controller.busy.value,
               onTap: () => controller.restoreBackup(context),
             ),
             if (controller.busy.value) const LinearProgressIndicator(),
             const Divider(),
-            const _Header('Tentang'),
+            const _Header('About'),
             ListTile(
               leading: const Icon(Icons.info_outline),
               title: const Text('${AppInfo.name} · ${AppInfo.tagline}'),
               subtitle: Text(
-                'Versi ${AppInfo.version}\nData disimpan hanya di perangkat ini. Tidak ada akun, server, atau sinkronisasi cloud. Backup manual adalah satu-satunya cara memulihkan data bila ponsel hilang.',
+                'Version ${AppInfo.version}\nYour data stays on this device. No account, server, or cloud sync is used. A manual backup is the only way to recover your data if your phone is lost.',
                 style: theme.textTheme.bodySmall,
               ),
               isThreeLine: true,

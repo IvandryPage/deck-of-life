@@ -36,7 +36,7 @@ class AppDatabase {
     } catch (e, st) {
       AppLog.error('db.open', e, st);
       throw LocalDatabaseException(
-        'Database tidak bisa dibuka. Tutup aplikasi lalu coba lagi.',
+        'The database could not be opened. Close the app and try again.',
         e,
       );
     }
@@ -67,7 +67,7 @@ Future<T> dbGuard<T>(Future<T> Function() action) async {
   } catch (e, st) {
     AppLog.error('db', e, st);
     throw LocalDatabaseException(
-      'Data belum tersimpan. Coba lagi; jika berulang, buat backup lalu mulai ulang aplikasi.',
+      'Your data was not saved. Try again; if it keeps happening, make a backup and restart the app.',
       e,
     );
   }

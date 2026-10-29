@@ -100,7 +100,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         appBar: AppBar(),
         body: const EmptyState(
           icon: Icons.search_off,
-          title: 'Tugas tidak ditemukan',
+          title: 'Task not found',
         ),
       );
     }
@@ -110,10 +110,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tugas'),
+        title: const Text('Task'),
         actions: [
           IconButton(
-            tooltip: 'Ubah',
+            tooltip: 'Edit task',
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => Get.toNamed<dynamic>(
               Routes.taskForm,
@@ -125,10 +125,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               if (v == 'delete') {
                 final ok = await confirmDialog(
                   context,
-                  title: 'Hapus tugas?',
+                  title: 'Delete task?',
                   message:
-                      'Tugas dan pengingatnya dihapus. Item tersimpan yang terhubung tidak ikut terhapus.',
-                  confirmLabel: 'Hapus',
+                      'The task and its reminder will be deleted. Linked notes will not be deleted.',
+                  confirmLabel: 'Delete',
                   destructive: true,
                 );
                 if (!ok) return;
@@ -136,7 +136,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   await Get.find<DeleteTask>()(task.id);
                   Get.find<DataRevision>().bump();
                   Get.back<void>();
-                  AppToast.show('Tugas dihapus');
+                  AppToast.show('Task deleted');
                 } catch (e) {
                   AppToast.show(messageOf(e), isError: true);
                 }
@@ -149,9 +149,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 if (s != task.status)
                   PopupMenuItem(
                     value: s.value,
-                    child: Text('Ubah ke: ${s.label}'),
+                    child: Text('Change to: ${s.label}'),
                   ),
-              const PopupMenuItem(value: 'delete', child: Text('Hapus')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete')),
             ],
           ),
         ],
@@ -173,50 +173,50 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               ),
               if (overdue)
                 const StatusTag(
-                  'Terlambat',
+                  'Overdue',
                   icon: Icons.warning_amber,
                   warning: true,
                 ),
-              StatusTag('Prioritas ${task.priority.label.toLowerCase()}'),
+              StatusTag('${task.priority.label} priority'),
               if (task.courseName != null) StatusTag(task.courseName!),
             ],
           ),
           const SizedBox(height: 16),
           KeyValueRow(
-            'Deadline',
+            'Due date',
             task.dueAt == null
-                ? 'Belum diketahui'
+                ? 'Not set'
                 : '${Formatters.dateTime(task.dueAt!)} (${DueLabel.of(task.dueAt, now: now)})',
           ),
           if (task.recurrenceRule != null)
             KeyValueRow(
-              'Ulangi',
+              'Repeat',
               RecurrenceRule.tryParse(task.recurrenceRule)?.label ??
-                  'Aturan berulang',
+                  'Repeat schedule',
             ),
           if (_reminder != null && _reminder!.isEnabled)
             KeyValueRow(
-              'Pengingat',
+              'Reminder',
               _reminder!.lastScheduledAt == null
-                  ? '${Formatters.dateTime(_reminder!.remindAt)} (belum terjadwal, periksa izin notifikasi)'
+                  ? '${Formatters.dateTime(_reminder!.remindAt)} (not scheduled; check notification permissions)'
                   : Formatters.dateTime(_reminder!.remindAt),
             ),
           if (task.estimatedMinutes != null)
-            KeyValueRow('Perkiraan durasi', '${task.estimatedMinutes} menit'),
+            KeyValueRow('Estimated duration', '${task.estimatedMinutes} min'),
           if (task.groupName != null)
-            KeyValueRow('Kelas / grup', task.groupName!),
-          KeyValueRow('Jenis', task.taskKind.label),
+            KeyValueRow('Class / group', task.groupName!),
+          KeyValueRow('Task type', task.taskKind.label),
           if (task.nextAction != null)
-            KeyValueRow('Langkah berikutnya', task.nextAction!),
+            KeyValueRow('Next action', task.nextAction!),
           if (task.instructionSource != null)
-            KeyValueRow('Sumber instruksi', task.instructionSource!),
+            KeyValueRow('Instructions from', task.instructionSource!),
           if (task.instructionLocation != null)
-            KeyValueRow('Lokasi instruksi', task.instructionLocation!),
+            KeyValueRow('Instruction location', task.instructionLocation!),
           if (task.completedAt != null)
-            KeyValueRow('Selesai', Formatters.dateTime(task.completedAt!)),
+            KeyValueRow('Completed', Formatters.dateTime(task.completedAt!)),
           if (_routineHistory.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text('Riwayat rutinitas', style: theme.textTheme.titleMedium),
+            Text('Routine history', style: theme.textTheme.titleMedium),
             for (final log in _routineHistory)
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -235,21 +235,21 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             FilledButton.icon(
               onPressed: () => _setStatus(TaskStatus.done),
               icon: const Icon(Icons.check),
-              label: const Text('Tandai selesai'),
+              label: const Text('Mark as done'),
             )
           else if (task.status == TaskStatus.done)
             OutlinedButton.icon(
               onPressed: () => _setStatus(TaskStatus.todo),
               icon: const Icon(Icons.undo),
-              label: const Text('Buka kembali'),
+              label: const Text('Reopen task'),
             ),
           const SizedBox(height: 24),
-          Text('Informasi terkait', style: theme.textTheme.titleMedium),
+          Text('Linked notes', style: theme.textTheme.titleMedium),
           if (_items.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                'Belum ada item tersimpan yang terhubung. Hubungkan dari halaman detail item.',
+                'No notes linked yet. You can link one from its detail page.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -262,7 +262,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               title: Text(i.title),
               subtitle: Text(i.itemType.label),
               trailing: IconButton(
-                tooltip: 'Lepas hubungan',
+                tooltip: 'Unlink note',
                 icon: const Icon(Icons.link_off),
                 onPressed: () async {
                   await _tasks.unlinkSavedItem(task.id, i.id);

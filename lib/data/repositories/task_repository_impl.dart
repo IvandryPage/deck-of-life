@@ -57,7 +57,7 @@ class TaskRepositoryImpl implements TaskRepository {
               limit: 1,
             );
             if (existing.isEmpty) {
-              throw const ValidationException('Tugas tidak ditemukan.');
+              throw const ValidationException('Task not found.');
             }
             final previous = TaskRow.fromRow(existing.first);
             final now = DateTime.now();
@@ -88,7 +88,7 @@ class TaskRepositoryImpl implements TaskRepository {
             final existing = await txn
                 .query('tasks', where: 'id = ?', whereArgs: [id], limit: 1);
             if (existing.isEmpty) {
-              throw const ValidationException('Tugas tidak ditemukan.');
+              throw const ValidationException('Task not found.');
             }
             final previous = TaskRow.fromRow(existing.first);
             final now = DateTime.now();

@@ -11,14 +11,22 @@ import '../controllers/routines_controller.dart';
 class RoutinesPage extends GetView<RoutinesController> {
   const RoutinesPage({super.key});
 
-  static const List<String> _dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  static const List<String> _dayNames = [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
 
   static String describe(Routine r) {
     switch (r.recurrenceType) {
       case RecurrenceType.daily:
-        return 'Setiap hari';
+        return 'Every day';
       case RecurrenceType.interval:
-        return 'Setiap ${r.intervalDays} hari';
+        return 'Every ${r.intervalDays} days';
       case RecurrenceType.weekly:
         final days = [...r.weekdays]..sort();
         return days.map((d) => _dayNames[d - 1]).join(', ');
@@ -28,11 +36,11 @@ class RoutinesPage extends GetView<RoutinesController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Rutinitas')),
+      appBar: AppBar(title: const Text('Routines')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed<dynamic>(Routes.routineForm),
         icon: const Icon(Icons.add),
-        label: const Text('Rutinitas baru'),
+        label: const Text('New routine'),
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
@@ -48,9 +56,9 @@ class RoutinesPage extends GetView<RoutinesController> {
         if (list.isEmpty) {
           return EmptyState(
             icon: Icons.repeat,
-            title: 'Belum ada rutinitas',
-            message: 'mis. bersih-bersih kost setiap 3 hari.',
-            actionLabel: 'Rutinitas baru',
+            title: 'No routines yet',
+            message: 'For example, tidy your room every 3 days.',
+            actionLabel: 'New routine',
             onAction: () => Get.toNamed<dynamic>(Routes.routineForm),
           );
         }
@@ -63,7 +71,8 @@ class RoutinesPage extends GetView<RoutinesController> {
             final r = list[i];
             final due = r.isDue(now);
             return ListTile(
-              onTap: () => Get.toNamed<dynamic>(Routes.routineForm, arguments: r),
+              onTap: () =>
+                  Get.toNamed<dynamic>(Routes.routineForm, arguments: r),
               title: Text(r.title),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,31 +80,32 @@ class RoutinesPage extends GetView<RoutinesController> {
                   Text(describe(r)),
                   Text(
                     r.lastCompletedAt == null
-                        ? 'Belum pernah dilakukan'
-                        : 'Terakhir: ${Formatters.dateTime(r.lastCompletedAt!)}',
+                        ? 'Never completed'
+                        : 'Last completed: ${Formatters.dateTime(r.lastCompletedAt!)}',
                   ),
                   if (r.isActive && r.nextDueAt != null)
                     Text(
                       due
-                          ? 'Berikutnya: jatuh tempo (${Formatters.dateShort(r.nextDueAt!)})'
-                          : 'Berikutnya: ${Formatters.dateShort(r.nextDueAt!)}',
+                          ? 'Next: due (${Formatters.dateShort(r.nextDueAt!)})'
+                          : 'Next: ${Formatters.dateShort(r.nextDueAt!)}',
                     ),
-                  if (!r.isActive) const StatusTag('Nonaktif'),
+                  if (!r.isActive) const StatusTag('Inactive'),
                 ],
               ),
               isThreeLine: true,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (due) const StatusTag('Jatuh tempo', icon: Icons.schedule, warning: true),
+                  if (due)
+                    const StatusTag('Due', icon: Icons.schedule, warning: true),
                   if (r.isActive)
                     IconButton(
-                      tooltip: 'Tandai selesai',
+                      tooltip: 'Mark complete',
                       icon: const Icon(Icons.check_circle_outline),
                       onPressed: () => controller.complete(r),
                     ),
                   IconButton(
-                    tooltip: 'Riwayat',
+                    tooltip: 'History',
                     icon: const Icon(Icons.history),
                     onPressed: () => _showLogs(context, r),
                   ),
@@ -118,14 +128,17 @@ class RoutinesPage extends GetView<RoutinesController> {
         child: logs.isEmpty
             ? const Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Belum ada riwayat pelaksanaan.'),
+                child: Text('No completion history yet.'),
               )
             : ListView(
                 shrinkWrap: true,
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Text(r.title, style: Theme.of(ctx).textTheme.titleMedium),
+                    child: Text(
+                      r.title,
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
                   ),
                   for (final l in logs)
                     ListTile(

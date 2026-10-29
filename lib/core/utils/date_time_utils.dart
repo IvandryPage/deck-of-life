@@ -78,19 +78,19 @@ class DateTimeUtils {
   static String _pad(int v, int w) => v.toString().padLeft(w, '0');
 }
 
-/// Label tenggat yang tidak mengarang kepastian (PRD bagian 7.1).
+/// Deadline labels avoid implying more certainty than the stored date provides.
 class DueLabel {
   const DueLabel._();
 
   static String of(DateTime? due, {DateTime? now}) {
-    if (due == null) return 'Tanpa deadline';
+    if (due == null) return 'No deadline';
     final n = (now ?? DateTime.now());
     final days = DateTimeUtils.calendarDaysBetween(n, due);
     if (due.isBefore(n) && days <= 0) {
-      return days == 0 ? 'Terlambat (hari ini)' : 'Terlambat ${-days} hari';
+      return days == 0 ? 'Overdue (today)' : 'Overdue by ${-days} days';
     }
-    if (days == 0) return 'Hari ini';
-    if (days == 1) return 'Besok';
-    return '$days hari lagi';
+    if (days == 0) return 'Today';
+    if (days == 1) return 'Tomorrow';
+    return 'In $days days';
   }
 }

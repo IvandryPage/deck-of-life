@@ -6,11 +6,7 @@ import '../repositories/ports.dart';
 import '../repositories/repositories.dart';
 
 class ReminderOutcome {
-  const ReminderOutcome({
-    required this.scheduled,
-    this.reminder,
-    this.message,
-  });
+  const ReminderOutcome({required this.scheduled, this.reminder, this.message});
 
   /// Reminder tersimpan di DB (null bila tidak ada yang disimpan).
   final Reminder? reminder;
@@ -32,10 +28,10 @@ class ReminderCoordinator {
     required NotificationScheduler scheduler,
     required ReminderTargetLookup lookup,
     required SettingsRepository settings,
-  })  : _reminders = reminders,
-        _scheduler = scheduler,
-        _lookup = lookup,
-        _settings = settings;
+  }) : _reminders = reminders,
+       _scheduler = scheduler,
+       _lookup = lookup,
+       _settings = settings;
 
   final ReminderRepository _reminders;
   final NotificationScheduler _scheduler;
@@ -68,15 +64,19 @@ class ReminderCoordinator {
       return ReminderOutcome(
         reminder: reminder,
         scheduled: false,
-        message: 'Waktu pengingat sudah lewat, jadi notifikasi tidak dijadwalkan.',
+        message:
+            'This reminder time has passed, so no notification was scheduled.',
       );
     }
     try {
-      final title = await _lookup.titleOf(reminder.targetType, reminder.targetId);
+      final title = await _lookup.titleOf(
+        reminder.targetType,
+        reminder.targetId,
+      );
       await _scheduler.schedule(
         id: reminder.notificationId,
         title: _headline(reminder.targetType),
-        body: title ?? 'Buka Deck of Life',
+        body: title ?? 'Open Deck of Life',
         at: reminder.remindAt,
       );
       await _reminders.markScheduled(reminder.id, DateTime.now());
@@ -86,8 +86,9 @@ class ReminderCoordinator {
       return ReminderOutcome(
         reminder: reminder,
         scheduled: false,
-        message: 'Pengingat tersimpan, tetapi notifikasi belum terjadwal. '
-            'Periksa izin notifikasi di Pengaturan.',
+        message:
+            'Reminder saved, but the notification was not scheduled. '
+            'Check notification permissions in Settings.',
       );
     }
   }
@@ -113,18 +114,20 @@ class ReminderCoordinator {
   Future<void> setEnabled(Reminder reminder, bool enabled) async {
     await _reminders.setEnabled(reminder.id, enabled);
     if (enabled) {
-      await _schedule(Reminder(
-        id: reminder.id,
-        targetType: reminder.targetType,
-        targetId: reminder.targetId,
-        remindAt: reminder.remindAt,
-        repeatRule: reminder.repeatRule,
-        notificationId: reminder.notificationId,
-        isEnabled: true,
-        lastScheduledAt: reminder.lastScheduledAt,
-        createdAt: reminder.createdAt,
-        updatedAt: reminder.updatedAt,
-      ));
+      await _schedule(
+        Reminder(
+          id: reminder.id,
+          targetType: reminder.targetType,
+          targetId: reminder.targetId,
+          remindAt: reminder.remindAt,
+          repeatRule: reminder.repeatRule,
+          notificationId: reminder.notificationId,
+          isEnabled: true,
+          lastScheduledAt: reminder.lastScheduledAt,
+          createdAt: reminder.createdAt,
+          updatedAt: reminder.updatedAt,
+        ),
+      );
     } else {
       await cancelIds([reminder.notificationId]);
     }
@@ -167,31 +170,33 @@ class ReminderCoordinator {
       await _scheduler.cancel(postWorkNotificationId);
       return;
     }
-    final time = await _settings.get(SettingKeys.postWorkReviewTime) ??
+    final time =
+        await _settings.get(SettingKeys.postWorkReviewTime) ??
         defaultPostWorkTime;
-    final parsed = DateTimeUtils.withTime(DateTime.now(), time) ??
+    final parsed =
+        DateTimeUtils.withTime(DateTime.now(), time) ??
         DateTimeUtils.withTime(DateTime.now(), defaultPostWorkTime)!;
     try {
       await _scheduler.scheduleDaily(
         id: postWorkNotificationId,
-        title: 'Tinjau tugas',
-        body: 'Lihat lagi agenda, deadline, dan item yang perlu diperiksa.',
+        title: 'Review tasks',
+        body: 'Review your schedule, deadlines, and notes that need attention.',
         hour: parsed.hour,
         minute: parsed.minute,
       );
     } catch (e) {
       throw NotificationSchedulingException(
-        'Pengingat harian belum bisa dijadwalkan. Periksa izin notifikasi.',
+        'Could not schedule the daily reminder. Check notification permissions.',
         e,
       );
     }
   }
 
   static String _headline(ReminderTargetType type) => switch (type) {
-        ReminderTargetType.task => 'Deadline tugas',
-        ReminderTargetType.event => 'Agenda',
-        ReminderTargetType.bill => 'Tagihan',
-        ReminderTargetType.routine => 'Rutinitas',
-        ReminderTargetType.savedItem => 'Periksa catatan',
-      };
+    ReminderTargetType.task => 'Task deadline',
+    ReminderTargetType.event => 'Event',
+    ReminderTargetType.bill => 'Bill',
+    ReminderTargetType.routine => 'Routine',
+    ReminderTargetType.savedItem => 'Review note',
+  };
 }

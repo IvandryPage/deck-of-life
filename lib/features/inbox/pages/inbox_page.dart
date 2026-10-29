@@ -11,9 +11,9 @@ class InboxPage extends GetView<InboxController> {
   const InboxPage({super.key});
 
   static const Map<InboxFilter, String> _labels = {
-    InboxFilter.all: 'Semua',
-    InboxFilter.needsReview: 'Perlu diperiksa',
-    InboxFilter.archived: 'Arsip',
+    InboxFilter.all: 'All',
+    InboxFilter.needsReview: 'Needs review',
+    InboxFilter.archived: 'Archived',
   };
 
   @override
@@ -67,14 +67,14 @@ class InboxPage extends GetView<InboxController> {
               return EmptyState(
                 icon: Icons.inbox_outlined,
                 title: f == InboxFilter.needsReview
-                    ? 'Tidak ada yang perlu diperiksa'
+                    ? 'Nothing needs review'
                     : f == InboxFilter.archived
-                    ? 'Arsip kosong'
-                    : 'Belum ada informasi tersimpan',
+                    ? 'No archived notes'
+                    : 'No notes yet',
                 message: f == InboxFilter.all
-                    ? 'Bagikan teks atau tautan dari aplikasi lain ke sini, atau ketuk "Simpan info". Tidak perlu mengisi semuanya.'
+                    ? 'Share text or a link from another app, or tap “Save note”. You can add details later.'
                     : null,
-                actionLabel: f == InboxFilter.all ? 'Simpan info' : null,
+                actionLabel: f == InboxFilter.all ? 'Save note' : null,
                 onAction: f == InboxFilter.all
                     ? () => Get.toNamed<dynamic>(
                         Routes.savedItemForm,

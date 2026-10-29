@@ -395,7 +395,7 @@ class NextAction {
 class NextActionAdvisor {
   const NextActionAdvisor._();
 
-  static String _days(int n) => n == 1 ? '1 hari' : '$n hari';
+  static String _days(int n) => n == 1 ? '1 day' : '$n days';
 
   /// Tidak mengarang estimasi durasi dan tidak mengklaim ada waktu luang.
   /// Mengembalikan null bila memang tidak ada yang mendesak.
@@ -423,8 +423,8 @@ class NextActionAdvisor {
         kind: NextActionKind.overdueTask,
         title: t.title,
         reason: late <= 0
-            ? 'Lewat deadline hari ini. Selesaikan atau jadwal ulang.'
-            : 'Lewat deadline ${_days(late)}. Selesaikan atau jadwal ulang.',
+            ? 'Past due today. Finish it or reschedule.'
+            : 'Past due by ${_days(late)}. Finish it or reschedule.',
         targetId: t.id,
       );
     }
@@ -436,10 +436,10 @@ class NextActionAdvisor {
       final late = -dayDiff(b.dueAt);
       return NextAction(
         kind: NextActionKind.bill,
-        title: 'Bayar ${b.title}',
+        title: 'Pay ${b.title}',
         reason: late <= 0
-            ? 'Tagihan jatuh tempo hari ini.'
-            : 'Tagihan lewat jatuh tempo ${_days(late)}.',
+            ? 'Bill is due today.'
+            : 'Bill is ${_days(late)} overdue.',
         targetId: b.id,
       );
     }
@@ -448,12 +448,12 @@ class NextActionAdvisor {
     for (final t in withDue) {
       final d = dayDiff(t.dueAt!);
       if (d > 1) break;
-      final when = d == 0 ? 'hari ini' : 'besok';
+      final when = d == 0 ? 'today' : 'tomorrow';
       if (t.status == TaskStatus.needsReview) {
         return NextAction(
           kind: NextActionKind.reviewTask,
-          title: 'Periksa dulu: ${t.title}',
-          reason: 'Deadline $when, tetapi informasinya belum lengkap.',
+          title: 'Review first: ${t.title}',
+          reason: 'Due $when, but the details are incomplete.',
           targetId: t.id,
         );
       }
@@ -471,10 +471,8 @@ class NextActionAdvisor {
       if (d <= 3) {
         return NextAction(
           kind: NextActionKind.bill,
-          title: 'Siapkan ${bills.first.title}',
-          reason: d == 0
-              ? 'Tagihan jatuh tempo hari ini.'
-              : 'Tagihan jatuh tempo ${_days(d)} lagi.',
+          title: 'Prepare ${bills.first.title}',
+          reason: d == 0 ? 'Bill is due today.' : 'Bill is due in ${_days(d)}.',
           targetId: bills.first.id,
         );
       }
@@ -484,8 +482,8 @@ class NextActionAdvisor {
     if (needsReviewItemCount > 0) {
       return NextAction(
         kind: NextActionKind.reviewItems,
-        title: 'Tinjau $needsReviewItemCount informasi baru',
-        reason: 'Belum ditinjau; bisa dijadikan tugas atau diarsipkan.',
+        title: 'Review $needsReviewItemCount new items',
+        reason: 'Not reviewed yet; turn them into tasks or archive them.',
       );
     }
 
@@ -494,9 +492,9 @@ class NextActionAdvisor {
       return NextAction(
         kind: NextActionKind.routine,
         title: dueRoutineCount == 1
-            ? '1 rutinitas jatuh tempo'
-            : '$dueRoutineCount rutinitas jatuh tempo',
-        reason: 'Tandai selesai setelah dikerjakan.',
+            ? '1 routine is due'
+            : '$dueRoutineCount routines are due',
+        reason: 'Mark it done after you finish it.',
       );
     }
 
@@ -508,7 +506,7 @@ class NextActionAdvisor {
         return NextAction(
           kind: NextActionKind.task,
           title: t.title,
-          reason: 'Deadline terdekat: ${_days(d)} lagi.',
+          reason: 'Next deadline: ${_days(d)} away.',
           targetId: t.id,
         );
       }
@@ -521,7 +519,7 @@ class NextActionAdvisor {
       return NextAction(
         kind: NextActionKind.resume,
         title: t.title,
-        reason: 'Sedang dikerjakan.',
+        reason: 'In progress.',
         targetId: t.id,
       );
     }

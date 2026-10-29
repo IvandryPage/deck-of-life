@@ -4,15 +4,14 @@ import 'package:get/get.dart';
 import '../../app/design/tokens.dart';
 import '../errors/app_exception.dart';
 
-/// Pesan error yang aman ditampilkan (tidak pernah membocorkan SQL mentah).
+/// Safe, user-facing error messages never expose raw SQL.
 String messageOf(Object error) =>
-    error is AppException ? error.message : 'Terjadi kesalahan. Coba lagi.';
+    error is AppException ? error.message : 'Something went wrong. Please try again.';
 
 class AppToast {
   const AppToast._();
 
-  /// [actionLabel]/[onAction] dipakai untuk "Urungkan". Snackbar sebelumnya
-  /// ditutup dulu agar tidak menumpuk.
+  /// Closes the previous snackbar before showing an optional action.
   static void show(
     String message, {
     bool isError = false,
@@ -58,18 +57,18 @@ class AppToast {
     ));
   }
 
-  /// Umpan balik sukses + tombol "Urungkan".
+  /// Success feedback with an Undo action.
   static void undoable(String message, VoidCallback onUndo) =>
-      show(message, actionLabel: 'Urungkan', onAction: onUndo);
+      show(message, actionLabel: 'Undo', onAction: onUndo);
 }
 
-/// Dialog konfirmasi untuk tindakan destruktif (hapus, restore).
+/// Confirmation dialog for destructive actions.
 Future<bool> confirmDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = 'Ya',
-  String cancelLabel = 'Batal',
+  String confirmLabel = 'Confirm',
+  String cancelLabel = 'Cancel',
   bool destructive = false,
 }) async {
   final result = await showDialog<bool>(
@@ -115,7 +114,7 @@ class EmptyState extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
 
-  /// Versi ringkas untuk di dalam kartu/section (tanpa Center penuh layar).
+  /// Compact version for use inside cards and sections.
   final bool compact;
 
   @override
@@ -169,13 +168,12 @@ class ErrorState extends StatelessWidget {
   Widget build(BuildContext context) => EmptyState(
         icon: Icons.error_outline,
         title: message,
-        actionLabel: onRetry == null ? null : 'Coba lagi',
+        actionLabel: onRetry == null ? null : 'Try again',
         onAction: onRetry,
       );
 }
 
-/// Kartu datar: judul kecil (label), isi di bawahnya. Tanpa bayangan; dipisah
-/// dari latar oleh warna permukaan + garis tipis dari tema.
+/// Flat section card separated from the background by a subtle themed border.
 class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
@@ -232,7 +230,7 @@ class SectionCard extends StatelessWidget {
   }
 }
 
-/// Judul bagian di luar kartu (daftar panjang): ringan, tanpa kartu bersarang.
+/// Lightweight section heading for long lists without nested cards.
 class SectionHeader extends StatelessWidget {
   const SectionHeader(this.title, {super.key, this.trailing, this.count});
 
@@ -267,7 +265,7 @@ class SectionHeader extends StatelessWidget {
 
 enum TagTone { neutral, urgent, warning, success }
 
-/// Label status yang tidak hanya mengandalkan warna (selalu ada teks, ikon opsional).
+/// Status label that does not rely on color alone.
 class StatusTag extends StatelessWidget {
   const StatusTag(
     this.label, {
@@ -322,8 +320,7 @@ class StatusTag extends StatelessWidget {
   }
 }
 
-/// Nominal rupiah dengan angka tabular. Tanda (+/−) selalu ditulis, jadi arti
-/// tidak hanya bergantung pada warna. Mengecil otomatis bila terlalu panjang.
+/// Rupiah amount with tabular figures and an explicit sign.
 class AmountText extends StatelessWidget {
   const AmountText(
     this.text, {
@@ -358,14 +355,13 @@ class AmountText extends StatelessWidget {
   }
 }
 
-/// Muncul dengan fade + geser kecil satu kali. Tidak dipakai bila pengguna
-/// mematikan animasi sistem.
+/// Fades and shifts in once, respecting reduced-motion settings.
 class FadeSlideIn extends StatelessWidget {
   const FadeSlideIn({super.key, required this.child, this.delayIndex = 0});
 
   final Widget child;
 
-  /// Staggering ringan (maks 4 langkah) agar tidak terasa lambat.
+  /// Light staggering with up to four short steps.
   final int delayIndex;
 
   @override
@@ -385,7 +381,7 @@ class FadeSlideIn extends StatelessWidget {
   }
 }
 
-/// Blok placeholder untuk skeleton. Berdenyut pelan; statis bila reduce-motion.
+/// Skeleton placeholder that respects reduced-motion settings.
 class SkeletonBox extends StatefulWidget {
   const SkeletonBox({super.key, this.width, this.height = 14, this.radius});
 
@@ -442,7 +438,7 @@ class _SkeletonBoxState extends State<SkeletonBox>
   }
 }
 
-/// Skeleton daftar baris (judul + meta), meniru TaskRow/TransactionRow.
+/// Skeleton list rows matching task and transaction rows.
 class SkeletonList extends StatelessWidget {
   const SkeletonList({super.key, this.rows = 6});
 
@@ -450,7 +446,7 @@ class SkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        label: 'Memuat',
+        label: 'Loading',
         child: ListView.builder(
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppSpace.gutter),

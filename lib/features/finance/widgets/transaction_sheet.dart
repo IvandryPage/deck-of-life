@@ -11,17 +11,16 @@ import '../controllers/finance_controller.dart';
 import 'account_dialog.dart';
 
 const List<String> _expenseCategories = [
-  'Makan',
+  'Food',
   'Transport',
-  'Belanja',
-  'Tagihan',
-  'Pendidikan',
-  'Lainnya',
+  'Shopping',
+  'Bills',
+  'Education',
+  'Other',
 ];
-const List<String> _incomeCategories = ['Gaji', 'Usaha', 'Kiriman', 'Lainnya'];
+const List<String> _incomeCategories = ['Salary', 'Business', 'Allowance', 'Other'];
 
-/// Catat transaksi: NOMINAL adalah elemen utama. Kategori sekali ketuk,
-/// tanggal default hari ini, catatan opsional. Hanya nominal yang wajib.
+/// Amount is primary, with one-tap categories, today's date, and optional notes.
 Future<void> showTransactionSheet(
   BuildContext context,
   FinanceController controller, {
@@ -110,7 +109,7 @@ class _TransactionFormState extends State<_TransactionForm> {
   Future<void> _save() async {
     final amount = Formatters.parseRupiah(_amount.text);
     if (amount == null || amount <= 0) {
-      setState(() => _amountError = 'Isi nominal lebih dari 0');
+      setState(() => _amountError = 'Enter an amount greater than 0');
       return;
     }
     final account = _account;
@@ -146,7 +145,7 @@ class _TransactionFormState extends State<_TransactionForm> {
     if (ok) {
       Navigator.of(context).pop();
     } else {
-      // Gagal: input tetap utuh agar bisa dicoba lagi.
+      // Keep input intact so the user can retry.
       setState(() => _saving = false);
     }
   }
@@ -160,10 +159,10 @@ class _TransactionFormState extends State<_TransactionForm> {
         child: EmptyState(
           compact: true,
           icon: Icons.account_balance_wallet_outlined,
-          title: 'Tambahkan akun dulu',
+          title: 'Add a wallet first',
           message:
-              'Transaksi dicatat pada sebuah akun (rekening atau uang tunai).',
-          actionLabel: 'Tambah akun',
+              'Transactions are recorded in a wallet, such as cash or a bank account.',
+          actionLabel: 'Add wallet',
           onAction: () {
             Navigator.of(context).pop();
             showAddAccountDialog(context, widget.controller);
@@ -225,7 +224,7 @@ class _TransactionFormState extends State<_TransactionForm> {
               fontFeatures: AppText.tabular,
             ),
             decoration: InputDecoration(
-              labelText: 'Nominal',
+              labelText: 'Amount',
               prefixText: 'Rp ',
               prefixStyle: context.text.headlineSmall?.copyWith(color: accent),
               errorText: _amountError,
@@ -251,7 +250,7 @@ class _TransactionFormState extends State<_TransactionForm> {
                 child: OutlinedButton.icon(
                   onPressed: _pickDate,
                   icon: const Icon(Icons.event, size: AppSize.iconSm),
-                  label: Text(today ? 'Hari ini' : Formatters.date(_date)),
+                  label: Text(today ? 'Today' : Formatters.date(_date)),
                 ),
               ),
               if (accounts.length > 1) ...[
@@ -284,7 +283,7 @@ class _TransactionFormState extends State<_TransactionForm> {
               child: TextField(
                 controller: _note,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(labelText: 'Catatan'),
+                decoration: const InputDecoration(labelText: 'Notes'),
               ),
             )
           else
@@ -292,12 +291,12 @@ class _TransactionFormState extends State<_TransactionForm> {
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: () => setState(() => _showNote = true),
-                child: const Text('Tambah catatan'),
+                child: const Text('Add note'),
               ),
             ),
           const SizedBox(height: AppSpace.sm),
           Text(
-            'Saldo wallet diperbarui otomatis. Gunakan koreksi saldo bila perlu.',
+            'Wallet balances update automatically. Adjust a balance if needed.',
             style: context.text.bodySmall?.copyWith(
               color: context.scheme.onSurfaceVariant,
             ),
@@ -311,7 +310,7 @@ class _TransactionFormState extends State<_TransactionForm> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(widget.existing == null ? 'Simpan' : 'Simpan perubahan'),
+                : Text(widget.existing == null ? 'Save' : 'Save changes'),
           ),
         ],
       ),

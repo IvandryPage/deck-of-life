@@ -13,16 +13,16 @@ class TasksPage extends GetView<TasksController> {
   const TasksPage({super.key});
 
   static const Map<TaskFilter, String> _labels = {
-    TaskFilter.active: 'Aktif',
-    TaskFilter.done: 'Selesai',
-    TaskFilter.all: 'Semua',
+    TaskFilter.active: 'Active',
+    TaskFilter.done: 'Done',
+    TaskFilter.all: 'All',
   };
 
   static const Map<TaskBucket, String> _bucketTitles = {
-    TaskBucket.overdue: 'Terlambat',
-    TaskBucket.today: 'Hari ini',
-    TaskBucket.upcoming: 'Mendatang',
-    TaskBucket.noDeadline: 'Tanpa deadline',
+    TaskBucket.overdue: 'Overdue',
+    TaskBucket.today: 'Today',
+    TaskBucket.upcoming: 'Upcoming',
+    TaskBucket.noDeadline: 'No deadline',
   };
 
   @override
@@ -65,11 +65,11 @@ class TasksPage extends GetView<TasksController> {
               final active = filter == TaskFilter.active;
               return EmptyState(
                 icon: Icons.checklist,
-                title: active ? 'Tidak ada tugas aktif' : 'Belum ada tugas',
+                title: active ? 'No active tasks' : 'No tasks yet',
                 message: active
-                    ? 'Ketik judul di atas lalu Enter. Deadline dan detail lain boleh menyusul.'
+                    ? 'Type a title above and press Enter. Add a deadline and other details later.'
                     : null,
-                actionLabel: active ? 'Tugas lengkap' : null,
+                actionLabel: active ? 'Add task' : null,
                 onAction: active
                     ? () => Get.toNamed<dynamic>(
                           Routes.taskForm,
@@ -119,7 +119,7 @@ class TasksPage extends GetView<TasksController> {
   }
 }
 
-/// Quick add: hanya judul. Field dipertahankan bila gagal menyimpan.
+/// Quick add starts with a title and keeps it if saving fails.
 class _QuickAdd extends StatefulWidget {
   const _QuickAdd();
 
@@ -156,10 +156,10 @@ class _QuickAddState extends State<_QuickAdd> {
           textCapitalization: TextCapitalization.sentences,
           onSubmitted: (_) => _submit(),
           decoration: InputDecoration(
-            hintText: 'Tambah tugas, lalu Enter',
+            hintText: 'Add a task, then press Enter',
             prefixIcon: const Icon(Icons.add_task),
             suffixIcon: IconButton(
-              tooltip: 'Tambah',
+              tooltip: 'Add task',
               icon: const Icon(Icons.arrow_upward),
               onPressed: _busy ? null : _submit,
             ),

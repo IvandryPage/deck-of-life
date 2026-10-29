@@ -59,16 +59,16 @@ class SettingsController extends GetxController {
       notificationsEnabled.value = ok;
       if (ok) {
         await _coordinator.reconcileAll();
-        AppToast.show('Notifikasi aktif');
+        AppToast.show('Notifications are on');
       } else {
         AppToast.show(
-          'Izin ditolak. Aktifkan manual di Pengaturan sistem > Aplikasi > Deck of Life > Notifikasi.',
+          'Permission denied. Enable notifications in System settings > Apps > Deck of Life.',
           isError: true,
         );
       }
     } catch (e, st) {
       AppLog.error('settings.permission', e, st);
-      AppToast.show('Izin notifikasi tidak bisa diminta.', isError: true);
+      AppToast.show('Could not request notification permission.', isError: true);
     }
   }
 
@@ -141,20 +141,19 @@ class SettingsController extends GetxController {
 
       if (!context.mounted) return;
       final exported = parsed.exportedAt == null
-          ? 'tidak diketahui'
+          ? 'unknown'
           : DateTimeUtils.tryParse(parsed.exportedAt) != null
               ? parsed.exportedAt!.split('T').first
               : parsed.exportedAt!;
       final ok = await confirmDialog(
         context,
-        title: 'Ganti semua data dengan backup ini?',
-        message: 'Backup tanggal $exported berisi '
-            '${parsed.countOf('saved_items')} item tersimpan, '
-            '${parsed.countOf('tasks')} tugas, ${parsed.countOf('events')} agenda, '
-            '${parsed.countOf('bills')} tagihan, ${parsed.countOf('routines')} rutinitas.\n\n'
-            'SEMUA data di aplikasi sekarang akan diganti. Sebelumnya aplikasi membuat '
-            'backup pengaman otomatis dari data saat ini.',
-        confirmLabel: 'Ganti data',
+        title: 'Replace all data with this backup?',
+        message: 'Backup dated $exported contains '
+            '${parsed.countOf('saved_items')} notes, '
+            '${parsed.countOf('tasks')} tasks, ${parsed.countOf('events')} events, '
+            '${parsed.countOf('bills')} bills, and ${parsed.countOf('routines')} routines.\n\n'
+            'All current app data will be replaced. A safety backup of your current data will be created first.',
+        confirmLabel: 'Replace data',
         destructive: true,
       );
       if (!ok) return;
@@ -162,7 +161,7 @@ class SettingsController extends GetxController {
       final result = await _backup.restore(text);
       _revision.bump();
       AppToast.show(
-        'Data dipulihkan (${result.restoredRows} baris). Backup pengaman data lama tersimpan di penyimpanan aplikasi.',
+        'Restored ${result.restoredRows} records. The safety backup of your previous data is stored in the app.',
       );
     } catch (e, st) {
       AppLog.error('settings.restore', e, st);

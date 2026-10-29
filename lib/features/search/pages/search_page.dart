@@ -22,7 +22,7 @@ class SearchPage extends GetView<UniversalSearchController> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           decoration: const InputDecoration(
-            hintText: 'Cari judul, isi, grup, mata kuliah, tautan…',
+            hintText: 'Search titles, content, groups, courses, and links…',
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
@@ -51,9 +51,9 @@ class SearchPage extends GetView<UniversalSearchController> {
                     controller.hasFilters;
                 return EmptyState(
                   icon: Icons.search_off,
-                  title: searching ? 'Tidak ada hasil' : 'Belum ada informasi tersimpan',
+                  title: searching ? 'No results' : 'No notes yet',
                   message: searching
-                      ? 'Coba kata kunci lain atau hapus filter. Pencarian hanya mencakup yang sudah disimpan di aplikasi ini.'
+                      ? 'Try another search or clear the filters. Search only includes items saved in this app.'
                       : null,
                 );
               }
@@ -62,8 +62,8 @@ class SearchPage extends GetView<UniversalSearchController> {
                   if (r.items.isNotEmpty) ...[
                     _Header(
                       controller.query.value.trim().isEmpty
-                          ? 'Terbaru'
-                          : 'Informasi tersimpan (${r.items.length})',
+                          ? 'Recent'
+                          : 'Notes (${r.items.length})',
                     ),
                     for (final i in r.items)
                       SavedItemTile(
@@ -75,7 +75,7 @@ class SearchPage extends GetView<UniversalSearchController> {
                       ),
                   ],
                   if (r.tasks.isNotEmpty) ...[
-                    _Header('Tugas (${r.tasks.length})'),
+                    _Header('Tasks (${r.tasks.length})'),
                     for (final t in r.tasks)
                       TaskTile(
                         task: t,
@@ -86,7 +86,7 @@ class SearchPage extends GetView<UniversalSearchController> {
                       ),
                   ],
                   if (r.events.isNotEmpty) ...[
-                    _Header('Agenda (${r.events.length})'),
+                    _Header('Events (${r.events.length})'),
                     for (final e in r.events)
                       ListTile(
                         leading: const Icon(Icons.event_outlined),
@@ -97,13 +97,13 @@ class SearchPage extends GetView<UniversalSearchController> {
                       ),
                   ],
                   if (r.bills.isNotEmpty) ...[
-                    _Header('Tagihan (${r.bills.length})'),
+                    _Header('Bills (${r.bills.length})'),
                     for (final b in r.bills)
                       ListTile(
                         leading: const Icon(Icons.receipt_long_outlined),
                         title: Text(b.title),
                         subtitle: Text(
-                          '${Formatters.rupiah(b.amount)} - ${b.isUnpaid ? "jatuh tempo ${Formatters.dateShort(b.dueAt)}" : "lunas"}',
+                          '${Formatters.rupiah(b.amount)} · ${b.isUnpaid ? "due ${Formatters.dateShort(b.dueAt)}" : "paid"}',
                         ),
                         onTap: () =>
                             Get.find<ShellController>().goTo(ShellController.tabFinance),
@@ -146,7 +146,7 @@ class _Filters extends StatelessWidget {
         child: Row(
           children: [
             _menu<SavedItemType>(
-              label: type?.label ?? 'Jenis',
+              label: type?.label ?? 'Type',
               selected: type != null,
               values: SavedItemType.values,
               labelOf: (t) => t.label,
@@ -163,7 +163,7 @@ class _Filters extends StatelessWidget {
             if (controller.courses.isNotEmpty) ...[
               const SizedBox(width: 8),
               _menu<String>(
-                label: course ?? 'Mata kuliah',
+                label: course ?? 'Course',
                 selected: course != null,
                 values: controller.courses.toList(),
                 labelOf: (c) => c,
@@ -174,7 +174,7 @@ class _Filters extends StatelessWidget {
               const SizedBox(width: 8),
               ActionChip(
                 avatar: const Icon(Icons.clear, size: 16),
-                label: const Text('Hapus filter'),
+                label: const Text('Clear filters'),
                 onPressed: controller.clearFilters,
               ),
             ],

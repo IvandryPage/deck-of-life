@@ -40,10 +40,10 @@ class FinanceRepositoryImpl implements FinanceRepository {
   @override
   Future<Account> createAccount(Account account) => dbGuard(() async {
     if (account.name.trim().isEmpty) {
-      throw const ValidationException('Nama akun tidak boleh kosong.');
+      throw const ValidationException('Wallet name cannot be empty.');
     }
     if (account.confirmedBalance < 0) {
-      throw const ValidationException('Saldo tidak boleh negatif.');
+      throw const ValidationException('Balance cannot be negative.');
     }
     await _db.raw.insert('accounts', AccountRow.toRow(account));
     return account;
@@ -52,7 +52,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
   @override
   Future<void> renameAccount(String id, String name) => dbGuard(() async {
     if (name.trim().isEmpty) {
-      throw const ValidationException('Nama akun tidak boleh kosong.');
+      throw const ValidationException('Wallet name cannot be empty.');
     }
     await _db.raw.update(
       'accounts',
@@ -82,7 +82,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
     DateTime? at,
   }) => dbGuard(() async {
     if (correctedBalance < 0) {
-      throw const ValidationException('Saldo tidak boleh negatif.');
+      throw const ValidationException('Balance cannot be negative.');
     }
     final when = DateTimeUtils.toIso(at ?? DateTime.now());
     await _db.raw.transaction((txn) async {
@@ -102,7 +102,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
         [accountId],
       );
       if (rows.isEmpty) {
-        throw const ValidationException('Akun tidak ditemukan.');
+        throw const ValidationException('Wallet not found.');
       }
       final previous = rows.first['current_balance'] as int;
       await txn.insert('balance_adjustments', {
@@ -147,11 +147,11 @@ class FinanceRepositoryImpl implements FinanceRepository {
   Future<MoneyTransaction> addTransaction(MoneyTransaction transaction) =>
       dbGuard(() async {
         if (transaction.amount <= 0) {
-          throw const ValidationException('Nominal harus lebih dari 0.');
+          throw const ValidationException('Amount must be greater than 0.');
         }
         if (transaction.transferId != null || transaction.billId != null) {
           throw const ValidationException(
-            'Transaksi tertaut hanya dapat dibuat melalui alur khusus.',
+            'Linked transactions can only be created through their source flow.',
           );
         }
         final row = TransactionRow.toRow(transaction)..['affects_balance'] = 1;
@@ -173,7 +173,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
   Future<void> updateTransaction(MoneyTransaction transaction) =>
       dbGuard(() async {
         if (transaction.amount <= 0) {
-          throw const ValidationException('Nominal harus lebih dari 0.');
+          throw const ValidationException('Amount must be greater than 0.');
         }
         await _db.raw.transaction((txn) async {
           final existing = await txn.query(
@@ -184,12 +184,12 @@ class FinanceRepositoryImpl implements FinanceRepository {
             limit: 1,
           );
           if (existing.isEmpty) {
-            throw const ValidationException('Transaksi tidak ditemukan.');
+            throw const ValidationException('Transaction not found.');
           }
           if (existing.first['transfer_id'] != null ||
               existing.first['bill_id'] != null) {
             throw const ValidationException(
-              'Transaksi transfer atau tagihan harus diubah dari data asalnya.',
+              'Transfer and bill transactions must be edited from their source.',
             );
           }
           final row = TransactionRow.toRow(transaction)
@@ -202,7 +202,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
             whereArgs: [transaction.id],
           );
           if (changed != 1) {
-            throw const ValidationException('Transaksi tidak ditemukan.');
+            throw const ValidationException('Transaction not found.');
           }
         });
       });
@@ -220,7 +220,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
       if (rows.isEmpty) return;
       if (rows.first['bill_id'] != null) {
         throw const ValidationException(
-          'Pembayaran tagihan harus dibatalkan dari tagihannya.',
+          'Bill payments must be undone from the bill.',
         );
       }
       final transferId = rows.first['transfer_id'] as String?;
@@ -260,11 +260,11 @@ class FinanceRepositoryImpl implements FinanceRepository {
     String? note,
   }) => dbGuard(() async {
     if (amount <= 0) {
-      throw const ValidationException('Nominal harus lebih dari 0.');
+      throw const ValidationException('Amount must be greater than 0.');
     }
     if (fromAccountId == toAccountId) {
       throw const ValidationException(
-        'Pilih dua wallet yang berbeda untuk transfer.',
+        'Choose two different wallets for the transfer.',
       );
     }
     final now = DateTime.now();
@@ -314,11 +314,11 @@ class FinanceRepositoryImpl implements FinanceRepository {
     String? note,
   }) => dbGuard(() async {
     if (amount <= 0) {
-      throw const ValidationException('Nominal harus lebih dari 0.');
+      throw const ValidationException('Amount must be greater than 0.');
     }
     if (fromAccountId == toAccountId) {
       throw const ValidationException(
-        'Pilih dua wallet yang berbeda untuk transfer.',
+        'Choose two different wallets for the transfer.',
       );
     }
     await _db.raw.transaction((txn) async {
@@ -336,7 +336,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
           .where((row) => row['direction'] == TransactionDirection.income.value)
           .toList();
       if (rows.length != 2 || outgoing.length != 1 || incoming.length != 1) {
-        throw const ValidationException('Pasangan transfer tidak ditemukan.');
+        throw const ValidationException('Transfer pair not found.');
       }
 
       final accounts = await txn.query(
@@ -346,7 +346,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
         whereArgs: [fromAccountId, toAccountId],
       );
       if (accounts.length != 2) {
-        throw const ValidationException('Wallet tidak ditemukan.');
+        throw const ValidationException('Wallet not found.');
       }
 
       final when = DateTimeUtils.toIso(occurredAt);
@@ -434,7 +434,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
       );
       if (bills.isEmpty) {
         throw const ValidationException(
-          'Tagihan tidak ditemukan atau sudah dibayar.',
+          'Bill not found or already paid.',
         );
       }
       final accounts = await txn.query(
@@ -445,7 +445,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
         limit: 1,
       );
       if (accounts.isEmpty) {
-        throw const ValidationException('Wallet tidak ditemukan.');
+        throw const ValidationException('Wallet not found.');
       }
       final bill = BillRow.fromRow(bills.first);
       final when = DateTimeUtils.toIso(paidAt);
@@ -465,7 +465,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
         accountId: accountId,
         amount: bill.amount,
         direction: TransactionDirection.expense,
-        category: 'Tagihan',
+        category: 'Bills',
         note: bill.title,
         occurredAt: paidAt,
         createdAt: DateTime.now(),
@@ -495,7 +495,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
       );
       if (bills.isEmpty) {
         throw const ValidationException(
-          'Pembayaran tidak dapat diurungkan karena tagihan bukan berstatus paid.',
+          'Payment cannot be undone because the bill is not marked as paid.',
         );
       }
 

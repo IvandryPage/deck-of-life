@@ -59,13 +59,13 @@ class RoutinesController extends GetxController with DataMutations {
     final ok = await mutate(() async {
       final res = await _complete(r.id);
       message = res.reminder?.message;
-    }, success: '"${r.title}" selesai');
+    }, success: '"${r.title}" completed');
     if (ok && message != null) AppToast.show(message!, isError: true);
     return ok;
   }
 
   Future<bool> remove(Routine r) =>
-      mutate(() => _delete(r.id), success: 'Rutinitas dihapus');
+      mutate(() => _delete(r.id), success: 'Routine deleted');
 
   Future<List<RoutineLog>> logsOf(Routine r) => _routines.logs(r.id);
 }

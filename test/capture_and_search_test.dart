@@ -32,14 +32,19 @@ void main() {
     });
 
     test('catatan biasa: jenis catatan, judul baris pertama', () {
-      final s = CaptureSuggester.suggest('Beli token listrik\nsebelum tanggal 5');
+      final s = CaptureSuggester.suggest(
+        'Beli token listrik\nsebelum tanggal 5',
+      );
       expect(s.type, SavedItemType.note);
       expect(s.title, 'Beli token listrik');
       expect(s.url, isNull);
     });
 
     test('teks dari Share Sheet tanpa URL dianggap pesan', () {
-      final s = CaptureSuggester.suggest('Besok kumpul laporan jam 10', fromShare: true);
+      final s = CaptureSuggester.suggest(
+        'Besok kumpul laporan jam 10',
+        fromShare: true,
+      );
       expect(s.type, SavedItemType.message);
     });
 
@@ -57,7 +62,7 @@ void main() {
 
     test('kosong: judul sementara bertanggal dan ditandai sementara', () {
       final s = CaptureSuggester.suggest('   ', now: now);
-      expect(s.title, 'Item baru — 26 Okt 2026');
+      expect(s.title, 'New item — Oct 26, 2026');
       expect(s.titleIsPlaceholder, isTrue);
     });
   });

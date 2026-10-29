@@ -108,7 +108,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_repeat == RecurrenceKind.weekdays && _repeatWeekdays.isEmpty) {
       AppToast.show(
-        'Pilih setidaknya satu hari untuk pengulangan.',
+        'Select at least one day for the repeat schedule.',
         isError: true,
       );
       return;
@@ -159,7 +159,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
       Get.find<DataRevision>().bump();
       final msg = result.reminder?.message;
       Get.back<void>();
-      AppToast.show(msg ?? 'Tugas tersimpan', isError: msg != null);
+      AppToast.show(msg ?? 'Task saved', isError: msg != null);
     } catch (err, st) {
       AppLog.error('task.save', err, st);
       if (mounted) setState(() => _saving = false);
@@ -167,7 +167,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
     }
   }
 
-  /// Buka "Opsi lanjutan" otomatis bila ada isian lanjutan (ubah / prefill konteks).
+  /// Opens More options automatically when advanced fields already have values.
   bool get _hasAdvanced =>
       _priority != TaskPriority.normal ||
       _status != TaskStatus.todo ||
@@ -192,7 +192,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
         ? const [TaskStatus.needsReview, TaskStatus.todo, TaskStatus.inProgress]
         : TaskStatus.values;
     return FormPage(
-      title: isNew ? 'Tugas baru' : 'Ubah tugas',
+      title: isNew ? 'New task' : 'Edit task',
       formKey: _formKey,
       onSave: _save,
       saving: _saving,
@@ -203,15 +203,15 @@ class _TaskFormPageState extends State<TaskFormPage> {
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.next,
           style: Theme.of(context).textTheme.titleMedium,
-          decoration: const InputDecoration(labelText: 'Judul tugas'),
+          decoration: const InputDecoration(labelText: 'Task title'),
           validator: (v) => (v == null || v.trim().isEmpty)
-              ? 'Judul tugas wajib diisi'
+              ? 'Task title is required'
               : null,
         ),
         DateTimeField(
-          label: 'Deadline',
+          label: 'Due date',
           value: _due,
-          emptyText: 'Belum diketahui',
+          emptyText: 'Not set yet',
           onChanged: (v) => setState(() => _due = v),
         ),
         if (_due != null)
@@ -219,9 +219,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
             value: _reminder,
             anchor: _due,
             presets: const [
-              ReminderPreset('1 jam sebelum', Duration(hours: 1)),
-              ReminderPreset('1 hari sebelum', Duration(days: 1)),
-              ReminderPreset('3 hari sebelum', Duration(days: 3)),
+              ReminderPreset('1 hour before', Duration(hours: 1)),
+              ReminderPreset('1 day before', Duration(days: 1)),
+              ReminderPreset('3 days before', Duration(days: 3)),
             ],
             onChanged: (v) => setState(() => _reminder = v),
           ),
@@ -233,7 +233,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
               children: [
                 Expanded(
                   child: EnumDropdown<TaskPriority>(
-                    label: 'Prioritas',
+                    label: 'Priority',
                     value: _priority,
                     items: TaskPriority.values,
                     labelOf: (p) => p.label,
@@ -257,11 +257,11 @@ class _TaskFormPageState extends State<TaskFormPage> {
             if (_due != null)
               DropdownButtonFormField<RecurrenceKind?>(
                 initialValue: _repeat,
-                decoration: const InputDecoration(labelText: 'Ulangi'),
+                decoration: const InputDecoration(labelText: 'Repeat'),
                 items: [
                   const DropdownMenuItem(
                     value: null,
-                    child: Text('Tidak berulang'),
+                    child: Text('Does not repeat'),
                   ),
                   for (final k in RecurrenceKind.values)
                     DropdownMenuItem(value: k, child: Text(k.label)),
@@ -280,13 +280,13 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 controller: _intervalDays,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Ulangi setiap berapa hari',
+                  labelText: 'Repeat every (days)',
                 ),
                 validator: (value) {
                   if (_repeat != RecurrenceKind.interval) return null;
                   final days = int.tryParse(value?.trim() ?? '');
                   return days == null || days < 1
-                      ? 'Masukkan jumlah hari minimal 1'
+                      ? 'Enter at least 1 day'
                       : null;
                 },
               ),
@@ -295,13 +295,13 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 spacing: AppSpace.xs,
                 children: [
                   for (final (index, label) in [
-                    'Sen',
-                    'Sel',
-                    'Rab',
-                    'Kam',
-                    'Jum',
-                    'Sab',
-                    'Min',
+                    'Mon',
+                    'Tue',
+                    'Wed',
+                    'Thu',
+                    'Fri',
+                    'Sat',
+                    'Sun',
                   ].indexed)
                     FilterChip(
                       label: Text(label),
@@ -322,22 +322,22 @@ class _TaskFormPageState extends State<TaskFormPage> {
               maxLines: 6,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: 'Catatan',
+                labelText: 'Notes',
                 alignLabelWithHint: true,
               ),
             ),
             TextFormField(
               controller: _course,
               decoration: const InputDecoration(
-                labelText: 'Mata kuliah / kategori',
+                labelText: 'Course / category',
               ),
             ),
             TextFormField(
               controller: _group,
-              decoration: const InputDecoration(labelText: 'Kelas / grup'),
+              decoration: const InputDecoration(labelText: 'Class / group'),
             ),
             EnumDropdown<TaskKind>(
-              label: 'Jenis tugas',
+              label: 'Task type',
               value: _kind,
               items: TaskKind.values,
               labelOf: (k) => k.label,
@@ -347,35 +347,35 @@ class _TaskFormPageState extends State<TaskFormPage> {
               controller: _minutes,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Perkiraan durasi (menit)',
-                helperText: 'Kosongkan bila tidak tahu; tidak akan ditebak',
+                labelText: 'Estimated duration (minutes)',
+                helperText: 'Leave blank if unknown; we will not guess',
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null;
                 final n = int.tryParse(v.trim());
                 return (n == null || n < 0)
-                    ? 'Isi angka menit yang valid'
+                    ? 'Enter a valid number of minutes'
                     : null;
               },
             ),
             TextFormField(
               controller: _nextAction,
               decoration: const InputDecoration(
-                labelText: 'Langkah berikutnya',
+                labelText: 'Next action',
               ),
             ),
             TextFormField(
               controller: _source,
               decoration: const InputDecoration(
-                labelText: 'Sumber instruksi',
-                helperText: 'mis. Grup WA kelas, dosen',
+                labelText: 'Instructions from',
+                helperText: 'e.g. class group chat, instructor',
               ),
             ),
             TextFormField(
               controller: _location,
               decoration: const InputDecoration(
-                labelText: 'Lokasi instruksi',
-                helperText: 'mis. nama grup / tautan Drive',
+                labelText: 'Instruction location',
+                helperText: 'e.g. group name or Drive link',
               ),
             ),
           ],

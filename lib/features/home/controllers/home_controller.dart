@@ -81,7 +81,7 @@ class HomeController extends GetxController with DataMutations {
     final sug = CaptureSuggester.suggest(text);
     final dup = await _savedItems.findDuplicate(url: sug.url, content: text);
     if (dup != null) {
-      AppToast.show('Sudah tersimpan: "${dup.title}"');
+      AppToast.show('Already saved: "${dup.title}"');
       return true;
     }
     final now = DateTime.now();
@@ -100,7 +100,7 @@ class HomeController extends GetxController with DataMutations {
         ),
         isNew: true,
       );
-    }, success: 'Tersimpan ke Kotak Masuk');
+    }, success: 'Saved to Notes');
   }
 
   Future<void> completeTask(String id) async {
@@ -109,16 +109,16 @@ class HomeController extends GetxController with DataMutations {
       spawned = await _changeStatus(id, TaskStatus.done);
     });
     if (!ok) return;
-    AppToast.undoable('Tugas selesai', () async {
+    AppToast.undoable('Task completed', () async {
       await mutate(() => _changeStatus.undoDone(id, spawnedId: spawned?.id));
     });
   }
 
   Future<bool> moveTask(String id, int days) =>
-      mutate(() => _reschedule(id, days), success: 'Tenggat digeser');
+      mutate(() => _reschedule(id, days), success: 'Deadline moved');
 
   Future<bool> dropTask(String id) => mutate(
     () => _changeStatus(id, TaskStatus.cancelled),
-    success: 'Tugas dibatalkan',
+    success: 'Task canceled',
   );
 }

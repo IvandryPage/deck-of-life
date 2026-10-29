@@ -1,7 +1,7 @@
 import '../entities/enums.dart';
 
-/// Saran judul/tipe dari teks yang ditangkap. Semua saran dapat diedit pengguna
-/// dan kegagalan di sini tidak boleh menggagalkan penyimpanan (TDD 6.1).
+/// Suggests a title and type for captured text. Suggestions remain editable,
+/// and suggestion failures must not block saving.
 class CaptureSuggestion {
   const CaptureSuggestion({
     required this.title,
@@ -14,7 +14,7 @@ class CaptureSuggestion {
   final SavedItemType type;
   final String? url;
 
-  /// True bila judul hanya sementara ("Item baru — 26 Okt 2026").
+  /// True when the title is only a placeholder ("New item — Oct 26, 2026").
   final bool titleIsPlaceholder;
 }
 
@@ -23,12 +23,12 @@ class CaptureSuggester {
 
   static final RegExp _url = RegExp(r'https?://[^\s<>"]+', caseSensitive: false);
   static const List<String> _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
   static String placeholderTitle(DateTime now) =>
-      'Item baru — ${now.day} ${_months[now.month - 1]} ${now.year}';
+      'New item — ${_months[now.month - 1]} ${now.day}, ${now.year}';
 
   /// [fromShare] = true membuat teks non-tautan dianggap "pesan" (salinan chat),
   /// bukan "catatan".

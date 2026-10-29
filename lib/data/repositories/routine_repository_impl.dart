@@ -99,7 +99,7 @@ class RoutineRepositoryImpl implements RoutineRepository {
         if (rule == null ||
             (rule.kind == RecurrenceKind.weekdays && rule.weekdays.isEmpty)) {
           throw const ValidationException(
-            'Aturan pengulangan rutinitas lama tidak valid.',
+            'The legacy routine repeat rule is invalid.',
           );
         }
 
@@ -109,7 +109,7 @@ class RoutineRepositoryImpl implements RoutineRepository {
             (routine.isActive ? RoutineScheduler.firstDue(routine, now) : null);
         if (routine.isActive && due == null) {
           throw const ValidationException(
-            'Jadwal rutinitas lama tidak dapat dipindahkan ke Tasks.',
+            'The legacy routine schedule could not be moved to Tasks.',
           );
         }
         final task = Task(
@@ -169,7 +169,7 @@ class RoutineRepositoryImpl implements RoutineRepository {
             limit: 1,
           );
           if (rows.isEmpty) {
-            throw const ValidationException('Rutinitas tidak ditemukan.');
+            throw const ValidationException('Routine not found.');
           }
           final routine = RoutineRow.fromRow(rows.first);
           final next = RoutineScheduler.nextDue(routine, completedAt);

@@ -67,7 +67,7 @@ class SavedItemTile extends StatelessWidget {
               ),
             ),
           if (item.needsReview)
-            const StatusTag('Perlu diperiksa', icon: Icons.help_outline),
+            const StatusTag('Needs review', icon: Icons.help_outline),
         ],
       ),
     );

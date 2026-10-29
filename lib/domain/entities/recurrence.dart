@@ -1,18 +1,17 @@
-/// Aturan berulang untuk tugas, acara, dan tagihan (`recurrence_rule`).
+/// Repeat rules for tasks, events, and bills (`recurrence_rule`).
 ///
 /// Format teks yang disimpan di SQLite:
 ///   - `daily`
 ///   - `weekly`
-///   - `monthly:<hari>`  (hari 1-31; "jangkar" agar tanggal 31 tidak melorot
-///      menjadi 28 selamanya setelah melewati Februari)
-///   - `interval:<hari>`
-///   - `weekdays:<hari>,...` (1 = Senin, 7 = Minggu)
+///   - `monthly:<day>` (day 1-31; retains day 31 after shorter months)
+///   - `interval:<days>`
+///   - `weekdays:<day>,...` (1 = Monday, 7 = Sunday)
 enum RecurrenceKind {
-  daily('Setiap hari'),
-  weekly('Setiap minggu'),
-  monthly('Setiap bulan'),
-  interval('Setiap N hari'),
-  weekdays('Hari tertentu setiap minggu');
+  daily('Every day'),
+  weekly('Every week'),
+  monthly('Every month'),
+  interval('Every N days'),
+  weekdays('Selected weekdays');
 
   const RecurrenceKind(this.label);
   final String label;
@@ -28,20 +27,20 @@ class RecurrenceRule {
 
   final RecurrenceKind kind;
 
-  /// Hanya untuk [RecurrenceKind.monthly].
+  /// Used only by [RecurrenceKind.monthly].
   final int? anchorDay;
   final int? intervalDays;
   final List<int> weekdays;
 
-  /// Membuat aturan dari pilihan pengguna; jangkar bulanan diambil dari [due].
+  /// Builds a rule from the user's choice; monthly anchor is taken from [due].
   factory RecurrenceRule.forDue(RecurrenceKind kind, DateTime due) =>
       RecurrenceRule(
         kind,
         anchorDay: kind == RecurrenceKind.monthly ? due.day : null,
       );
 
-  /// Mengembalikan null untuk nilai kosong atau tidak dikenal (diperlakukan
-  /// sebagai tidak berulang, bukan error, agar data lama/aneh tidak merusak layar).
+  /// Returns null for empty or unknown values so older or malformed data remains
+  /// safely displayable as a non-repeating item.
   static RecurrenceRule? tryParse(String? raw) {
     if (raw == null) return null;
     final v = raw.trim().toLowerCase();
@@ -84,27 +83,26 @@ class RecurrenceRule {
   };
 
   String get label => switch (kind) {
-    RecurrenceKind.interval => 'Setiap ${intervalDays ?? 1} hari',
+    RecurrenceKind.interval => 'Every ${intervalDays ?? 1} days',
     RecurrenceKind.weekdays =>
       weekdays
           .map(
             (day) => const [
-              'Sen',
-              'Sel',
-              'Rab',
-              'Kam',
-              'Jum',
-              'Sab',
-              'Min',
+              'Mon',
+              'Tue',
+              'Wed',
+              'Thu',
+              'Fri',
+              'Sat',
+              'Sun',
             ].elementAt(day - 1),
           )
           .join(', '),
     _ => kind.label,
   };
 
-  /// Kemunculan berikutnya setelah [from], dengan jam yang sama. Memakai
-  /// aritmetika kalender (bukan +24 jam) sehingga aman pada pergantian bulan,
-  /// tahun, dan tahun kabisat.
+  /// Returns the next occurrence at the same local time using calendar
+  /// arithmetic, safe across month, year, and leap-year boundaries.
   DateTime next(DateTime from) {
     switch (kind) {
       case RecurrenceKind.daily:
@@ -174,9 +172,9 @@ class RecurrenceRule {
     }
   }
 
-  /// Kemunculan pertama setelah [from] yang juga jatuh setelah [notBefore].
-  /// Dipakai untuk tugas: menyelesaikan tugas harian yang terlambat 5 hari tidak
-  /// boleh langsung menghasilkan tugas baru yang sudah terlambat 4 hari.
+  /// Returns the first occurrence after [from] that also falls after [notBefore].
+  /// This prevents completing an overdue repeating task from creating another
+  /// already-overdue task.
   DateTime nextAfter(DateTime from, DateTime notBefore) {
     var n = next(from);
     // Batas pengaman agar tidak pernah berputar tanpa akhir pada data aneh.

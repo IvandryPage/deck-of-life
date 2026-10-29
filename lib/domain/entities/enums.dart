@@ -1,12 +1,12 @@
-/// Enum domain. `value` = string yang disimpan di SQLite (sesuai CHECK di skema).
+/// Domain enums. `value` is persisted in SQLite and must match schema checks.
 
 enum SavedItemType {
-  note('note', 'Catatan'),
-  message('message', 'Pesan'),
-  link('link', 'Tautan'),
-  fileReference('file_reference', 'Referensi file'),
-  imageReference('image_reference', 'Referensi gambar'),
-  other('other', 'Lainnya');
+  note('note', 'Note'),
+  message('message', 'Message'),
+  link('link', 'Link'),
+  fileReference('file_reference', 'File reference'),
+  imageReference('image_reference', 'Image reference'),
+  other('other', 'Other');
 
   const SavedItemType(this.value, this.label);
   final String value;
@@ -17,9 +17,9 @@ enum SavedItemType {
 }
 
 enum ReviewStatus {
-  needsReview('needs_review', 'Perlu diperiksa'),
-  reviewed('reviewed', 'Sudah diperiksa'),
-  archived('archived', 'Diarsipkan');
+  needsReview('needs_review', 'Needs review'),
+  reviewed('reviewed', 'Reviewed'),
+  archived('archived', 'Archived');
 
   const ReviewStatus(this.value, this.label);
   final String value;
@@ -30,11 +30,11 @@ enum ReviewStatus {
 }
 
 enum TaskStatus {
-  needsReview('needs_review', 'Perlu diperiksa'),
-  todo('todo', 'Akan dikerjakan'),
-  inProgress('in_progress', 'Dikerjakan'),
-  done('done', 'Selesai'),
-  cancelled('cancelled', 'Dibatalkan');
+  needsReview('needs_review', 'Needs review'),
+  todo('todo', 'To do'),
+  inProgress('in_progress', 'In progress'),
+  done('done', 'Done'),
+  cancelled('cancelled', 'Canceled');
 
   const TaskStatus(this.value, this.label);
   final String value;
@@ -47,10 +47,10 @@ enum TaskStatus {
 }
 
 enum TaskPriority {
-  low('low', 'Rendah'),
+  low('low', 'Low'),
   normal('normal', 'Normal'),
-  high('high', 'Tinggi'),
-  urgent('urgent', 'Mendesak');
+  high('high', 'High'),
+  urgent('urgent', 'Urgent');
 
   const TaskPriority(this.value, this.label);
   final String value;
@@ -63,10 +63,10 @@ enum TaskPriority {
 }
 
 enum TaskKind {
-  individual('individual', 'Individu'),
-  group('group', 'Kelompok'),
-  sharedResponsibility('shared_responsibility', 'Tanggung jawab bersama'),
-  unknown('unknown', 'Belum jelas');
+  individual('individual', 'Individual'),
+  group('group', 'Group'),
+  sharedResponsibility('shared_responsibility', 'Shared responsibility'),
+  unknown('unknown', 'Unclear');
 
   const TaskKind(this.value, this.label);
   final String value;
@@ -77,12 +77,12 @@ enum TaskKind {
 }
 
 enum EventType {
-  lecture('lecture', 'Kuliah'),
-  work('work', 'Kerja'),
-  meeting('meeting', 'Rapat'),
-  appointment('appointment', 'Janji'),
-  personal('personal', 'Pribadi'),
-  other('other', 'Lainnya');
+  lecture('lecture', 'Class'),
+  work('work', 'Work'),
+  meeting('meeting', 'Meeting'),
+  appointment('appointment', 'Appointment'),
+  personal('personal', 'Personal'),
+  other('other', 'Other');
 
   const EventType(this.value, this.label);
   final String value;
@@ -107,10 +107,10 @@ enum ReminderTargetType {
 }
 
 enum AccountType {
-  cash('cash', 'Uang tunai'),
-  bank('bank', 'Rekening bank'),
+  cash('cash', 'Cash'),
+  bank('bank', 'Bank account'),
   eWallet('e_wallet', 'E-wallet'),
-  other('other', 'Lainnya');
+  other('other', 'Other');
 
   const AccountType(this.value, this.label);
   final String value;
@@ -121,8 +121,8 @@ enum AccountType {
 }
 
 enum TransactionDirection {
-  income('income', 'Pemasukan'),
-  expense('expense', 'Pengeluaran');
+  income('income', 'Income'),
+  expense('expense', 'Expense');
 
   const TransactionDirection(this.value, this.label);
   final String value;
@@ -133,9 +133,9 @@ enum TransactionDirection {
 }
 
 enum BillStatus {
-  unpaid('unpaid', 'Belum dibayar'),
-  paid('paid', 'Dibayar'),
-  cancelled('cancelled', 'Dibatalkan');
+  unpaid('unpaid', 'Unpaid'),
+  paid('paid', 'Paid'),
+  cancelled('cancelled', 'Canceled');
 
   const BillStatus(this.value, this.label);
   final String value;
@@ -146,9 +146,9 @@ enum BillStatus {
 }
 
 enum RecurrenceType {
-  daily('daily', 'Setiap hari'),
-  weekly('weekly', 'Hari tertentu setiap minggu'),
-  interval('interval', 'Setiap N hari');
+  daily('daily', 'Every day'),
+  weekly('weekly', 'Selected weekdays'),
+  interval('interval', 'Every N days');
 
   const RecurrenceType(this.value, this.label);
   final String value;

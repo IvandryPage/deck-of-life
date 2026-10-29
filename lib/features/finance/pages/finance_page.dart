@@ -89,7 +89,7 @@ class _WalletOverview extends StatelessWidget {
             ),
             const SizedBox(height: AppSpace.md),
             if (accounts.isEmpty)
-              const Text('Tambahkan wallet untuk mulai mencatat uang.')
+              const Text('Add a wallet to start tracking money.')
             else
               SizedBox(
                 height: 72,
@@ -137,7 +137,7 @@ class _WalletOverview extends StatelessWidget {
               children: [
                 Expanded(
                   child: _MoneyAction(
-                    label: 'Pemasukan',
+                    label: 'Income',
                     icon: Icons.south_west,
                     color: context.semantic.income,
                     onPressed: accounts.isEmpty
@@ -152,7 +152,7 @@ class _WalletOverview extends StatelessWidget {
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
                   child: _MoneyAction(
-                    label: 'Pengeluaran',
+                    label: 'Expense',
                     icon: Icons.north_east,
                     color: context.semantic.expense,
                     onPressed: accounts.isEmpty
@@ -224,19 +224,19 @@ class _SummaryCard extends StatelessWidget {
 
     if (!s.hasAccounts) {
       return SectionCard(
-        title: 'Ringkasan',
+        title: 'Summary',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Belum ada saldo. Tambahkan akun (rekening atau uang tunai) dan masukkan saldo '
-              'yang Anda lihat sekarang. Tidak perlu mencatat setiap pengeluaran.',
+              'No balance yet. Add a wallet, such as cash or a bank account, and enter its current balance. '
+              'You do not need to record every expense.',
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () => showAddAccountDialog(context, controller),
               icon: const Icon(Icons.add),
-              label: const Text('Tambah akun'),
+              label: const Text('Add wallet'),
             ),
           ],
         ),
@@ -249,12 +249,12 @@ class _SummaryCard extends StatelessWidget {
         DateTime.now().difference(s.oldestConfirmedAt!).inDays >= 7;
 
     return SectionCard(
-      title: 'Ringkasan',
+      title: 'Summary',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Saldo terkonfirmasi',
+            'Confirmed balance',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -266,7 +266,7 @@ class _SummaryCard extends StatelessWidget {
           ),
           if (s.lastConfirmedAt != null)
             Text(
-              'Terakhir diperbarui ${Formatters.dateTime(s.lastConfirmedAt!)}',
+              'Last updated ${Formatters.dateTime(s.lastConfirmedAt!)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -275,27 +275,27 @@ class _SummaryCard extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.only(top: 4),
               child: StatusTag(
-                'Ada saldo yang lebih dari 7 hari belum diperbarui',
+                'A balance has not been updated in over 7 days',
                 icon: Icons.schedule,
                 warning: true,
               ),
             ),
           const Divider(height: 20),
           KeyValueRow(
-            'Tagihan belum dibayar',
+            'Unpaid bills',
             Formatters.rupiah(s.knownUnpaidBills),
           ),
           KeyValueRow(
-            'Uang bebas (estimasi)',
+            'Estimated money left',
             free < 0
-                ? 'Kurang ${Formatters.rupiah(-free)}'
+                ? 'Short by ${Formatters.rupiah(-free)}'
                 : Formatters.rupiah(free),
             emphasize: true,
           ),
           if (controller.reality.value != null)
             ..._breakdown(controller.reality.value!),
           Text(
-            'Estimasi = saldo terkonfirmasi dikurangi tagihan belum dibayar. Ini bukan saldo bank aktual.',
+            'Estimate = confirmed balance minus unpaid bills. This is not your actual bank balance.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -310,18 +310,18 @@ class _SummaryCard extends StatelessWidget {
   List<Widget> _breakdown(RealityCheck r) => [
     if (r.overdueTotal > 0)
       KeyValueRow(
-        '  Sudah lewat jatuh tempo',
+        '  Overdue',
         Formatters.rupiah(r.overdueTotal),
       ),
     KeyValueRow(
-      '  Jatuh tempo ${r.horizonDays} hari ke depan',
+      '  Due in the next ${r.horizonDays} days',
       Formatters.rupiah(r.dueInHorizonTotal),
     ),
     if (r.laterTotal > 0)
-      KeyValueRow('  Lebih dari itu', Formatters.rupiah(r.laterTotal)),
+      KeyValueRow('  Later', Formatters.rupiah(r.laterTotal)),
     if (r.fundingGap > 0)
       KeyValueRow(
-        'Kesenjangan dana (${r.horizonDays} hari)',
+        'Funding gap (${r.horizonDays} days)',
         Formatters.rupiah(r.fundingGap),
         emphasize: true,
       ),
@@ -340,19 +340,19 @@ class _SummaryCard extends StatelessWidget {
     switch (t.status) {
       case IncomeTargetStatus.notNeeded:
         headline = const KeyValueRow(
-          'Target pemasukan/hari',
-          'Tidak perlu tambahan',
+          'Daily income target',
+          'No extra income needed',
           emphasize: true,
         );
       case IncomeTargetStatus.needsWorkdays:
         headline = const KeyValueRow(
-          'Target pemasukan/hari',
-          'Tentukan hari kerja',
+          'Daily income target',
+          'Set workdays',
           emphasize: true,
         );
       case IncomeTargetStatus.ready:
         headline = KeyValueRow(
-          'Target pemasukan/hari (estimasi)',
+          'Estimated daily income target',
           Formatters.rupiah(t.dailyTarget!),
           emphasize: true,
         );
@@ -364,11 +364,11 @@ class _SummaryCard extends StatelessWidget {
         headline,
         const SizedBox(height: 4),
         Text(
-          'Asumsi: kewajiban ${Formatters.rupiah(s.knownUnpaidBills)} − dana tersedia '
-          '${Formatters.rupiah(s.confirmedTotal)} − pemasukan terkonfirmasi '
-          '${Formatters.rupiah(income)} = kekurangan ${Formatters.rupiah(t.fundingGap)}'
-          '${days != null && days > 0 ? ', dibagi $days hari kerja' : ''}. '
-          'Pemasukan yang belum pasti tidak dihitung.',
+          'Estimate: bills ${Formatters.rupiah(s.knownUnpaidBills)} − available funds '
+          '${Formatters.rupiah(s.confirmedTotal)} − confirmed income '
+          '${Formatters.rupiah(income)} = shortfall ${Formatters.rupiah(t.fundingGap)}'
+          '${days != null && days > 0 ? ', divided across $days workdays' : ''}. '
+          'Unconfirmed income is not included.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -379,12 +379,12 @@ class _SummaryCard extends StatelessWidget {
             TextButton(
               onPressed: () => _editWorkdays(context),
               child: Text(
-                days == null ? 'Atur hari kerja' : 'Hari kerja: $days',
+                days == null ? 'Set workdays' : 'Workdays: $days',
               ),
             ),
             TextButton(
               onPressed: () => _editIncome(context),
-              child: const Text('Pemasukan terkonfirmasi'),
+              child: const Text('Confirmed income'),
             ),
           ],
         ),
@@ -395,11 +395,11 @@ class _SummaryCard extends StatelessWidget {
   Future<void> _editWorkdays(BuildContext context) async {
     final r = await showFieldsDialog(
       context,
-      title: 'Hari kerja tersedia',
-      message: 'Berapa hari Anda bisa bekerja sampai tagihan jatuh tempo?',
+      title: 'Available workdays',
+      message: 'How many days can you work before your bills are due?',
       fields: [
         FieldSpec(
-          label: 'Jumlah hari',
+          label: 'Number of days',
           numeric: true,
           initial: controller.workdays.value?.toString() ?? '',
         ),
@@ -413,12 +413,12 @@ class _SummaryCard extends StatelessWidget {
   Future<void> _editIncome(BuildContext context) async {
     final r = await showFieldsDialog(
       context,
-      title: 'Pemasukan terkonfirmasi',
+      title: 'Confirmed income',
       message:
-          'Hanya uang yang PASTI akan diterima sebelum jatuh tempo (mis. gaji yang sudah dijanjikan). Kosongkan/0 bila tidak ada.',
+          'Only include money you are certain to receive before bills are due, such as a confirmed paycheck. Leave blank or enter 0 if none.',
       fields: [
         FieldSpec(
-          label: 'Nominal (Rp)',
+          label: 'Amount (Rp)',
           numeric: true,
           required: false,
           initial: controller.confirmedIncome.value == 0
@@ -448,13 +448,13 @@ class _AccountsCard extends StatelessWidget {
       trailing: TextButton.icon(
         onPressed: () => showAddAccountDialog(context, controller),
         icon: const Icon(Icons.add),
-        label: const Text('Tambah'),
+        label: const Text('Add'),
       ),
       child: accounts.isEmpty
           ? FilledButton.icon(
               onPressed: () => showAddAccountDialog(context, controller),
               icon: const Icon(Icons.add),
-              label: const Text('Tambah wallet'),
+              label: const Text('Add wallet'),
             )
           : Column(
               children: [
@@ -463,7 +463,7 @@ class _AccountsCard extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     title: Text(a.name),
                     subtitle: Text(
-                      '${a.accountType.label} · per ${Formatters.dateTime(a.balanceConfirmedAt)}',
+                      '${a.accountType.label} · as of ${Formatters.dateTime(a.balanceConfirmedAt)}',
                     ),
                     trailing: Text(
                       Formatters.rupiah(a.confirmedBalance),
@@ -477,11 +477,11 @@ class _AccountsCard extends StatelessWidget {
                   child: TextButton.icon(
                     onPressed: () => showAddAccountDialog(context, controller),
                     icon: const Icon(Icons.add),
-                    label: const Text('Tambah wallet'),
+                    label: const Text('Add wallet'),
                   ),
                 ),
                 Text(
-                  'Ketuk wallet untuk Adjust balance. Tahan untuk mengubah nama atau menyembunyikan.',
+                  'Tap a wallet to adjust its balance. Long-press to rename or hide it.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -494,23 +494,23 @@ class _AccountsCard extends StatelessWidget {
   Future<void> _updateBalance(BuildContext context, Account a) async {
     final r = await showFieldsDialog(
       context,
-      title: 'Perbarui saldo ${a.name}',
+      title: 'Adjust ${a.name} balance',
       message:
-          'Masukkan saldo aktual yang Anda lihat sekarang. Saldo sebelumnya: ${Formatters.rupiah(a.confirmedBalance)}.',
+          'Enter the current balance you see. Previous balance: ${Formatters.rupiah(a.confirmedBalance)}.',
       fields: [
         FieldSpec(
-          label: 'Saldo aktual (Rp)',
+          label: 'Current balance (Rp)',
           numeric: true,
           initial: a.confirmedBalance.toString(),
         ),
         const FieldSpec(
-          label: 'Alasan',
+          label: 'Reason',
           required: false,
           advanced: true,
-          helper: 'mis. koreksi, setelah bayar kost',
+          helper: 'e.g. correction, after paying rent',
         ),
       ],
-      confirmLabel: 'Konfirmasi',
+      confirmLabel: 'Confirm',
     );
     if (r == null) return;
     final value = Formatters.parseRupiah(r[0]);
@@ -532,18 +532,18 @@ class _AccountsCard extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.history),
-              title: const Text('Riwayat penyesuaian saldo'),
+              title: const Text('Balance adjustment history'),
               onTap: () => Navigator.of(ctx).pop('history'),
             ),
             ListTile(
               leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('Ganti nama'),
+              title: const Text('Rename'),
               onTap: () => Navigator.of(ctx).pop('rename'),
             ),
             ListTile(
               leading: const Icon(Icons.visibility_off_outlined),
-              title: const Text('Sembunyikan akun'),
-              subtitle: const Text('Tidak dihitung lagi di ringkasan'),
+              title: const Text('Hide wallet'),
+              subtitle: const Text('Excluded from totals'),
               onTap: () => Navigator.of(ctx).pop('hide'),
             ),
           ],
@@ -562,7 +562,7 @@ class _AccountsCard extends StatelessWidget {
             child: list.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Text('Belum ada penyesuaian.'),
+                    child: Text('No adjustments yet.'),
                   )
                 : ListView(
                     shrinkWrap: true,
@@ -584,17 +584,17 @@ class _AccountsCard extends StatelessWidget {
       case 'rename':
         final r = await showFieldsDialog(
           context,
-          title: 'Ganti nama',
-          fields: [FieldSpec(label: 'Nama', initial: a.name)],
+          title: 'Rename wallet',
+          fields: [FieldSpec(label: 'Name', initial: a.name)],
         );
         if (r != null) await controller.renameAccount(a, r[0]);
       case 'hide':
         final ok = await confirmDialog(
           context,
-          title: 'Sembunyikan akun?',
+          title: 'Hide wallet?',
           message:
-              'Riwayatnya tetap tersimpan, tetapi saldo tidak lagi masuk ringkasan.',
-          confirmLabel: 'Sembunyikan',
+              'Its history will be kept, but the balance will no longer be included in totals.',
+          confirmLabel: 'Hide wallet',
         );
         if (ok) await controller.deactivateAccount(a);
     }
@@ -616,17 +616,17 @@ class _BillsCard extends StatelessWidget {
     final paid = controller.paidBills;
     final theme = Theme.of(context);
     return SectionCard(
-      title: 'Tagihan',
+      title: 'Bills',
       trailing: TextButton.icon(
         onPressed: () => showBillSheet(context, controller),
         icon: const Icon(Icons.add),
-        label: const Text('Tagihan'),
+        label: const Text('Add bill'),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (unpaid.isEmpty)
-            const Text('Tidak ada tagihan yang belum dibayar.'),
+            const Text('No unpaid bills.'),
           for (final b in unpaid)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -643,7 +643,7 @@ class _BillsCard extends StatelessWidget {
                   ),
                   if (b.isOverdue(now))
                     const StatusTag(
-                      'Terlambat',
+                      'Overdue',
                       icon: Icons.warning_amber,
                       warning: true,
                     ),
@@ -673,14 +673,14 @@ class _BillsCard extends StatelessWidget {
             ),
           if (unpaid.isNotEmpty)
             Text(
-              'Ketuk tagihan untuk mengubah. Pay mencatat pengeluaran pada wallet terpilih.',
+              'Tap a bill to edit it. Pay records an expense in the selected wallet.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           if (paid.isNotEmpty) ...[
             const Divider(height: 24),
-            Text('Sudah dibayar', style: theme.textTheme.labelLarge),
+            Text('Paid', style: theme.textTheme.labelLarge),
             for (final b in paid)
               ListTile(
                 dense: true,
@@ -689,7 +689,7 @@ class _BillsCard extends StatelessWidget {
                 title: Text(b.title),
                 subtitle: b.paidAt == null
                     ? null
-                    : Text('Dibayar ${Formatters.date(b.paidAt!)}'),
+                    : Text('Paid ${Formatters.date(b.paidAt!)}'),
                 trailing: Text(Formatters.rupiah(b.amount)),
               ),
           ],
@@ -708,13 +708,13 @@ class _BillsCard extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.check),
-              title: const Text('Tandai dibayar'),
-              subtitle: const Text('Pilih wallet untuk mencatat pengeluaran'),
+              title: const Text('Mark as paid'),
+              subtitle: const Text('Choose a wallet for the expense'),
               onTap: () => Navigator.of(ctx).pop('paid'),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('Hapus tagihan'),
+              title: const Text('Delete bill'),
               onTap: () => Navigator.of(ctx).pop('delete'),
             ),
           ],
@@ -727,9 +727,9 @@ class _BillsCard extends StatelessWidget {
     } else {
       final ok = await confirmDialog(
         context,
-        title: 'Hapus tagihan?',
-        message: '"${b.title}" dihapus dan tidak lagi dihitung.',
-        confirmLabel: 'Hapus',
+        title: 'Delete bill?',
+        message: '"${b.title}" will be deleted and no longer counted.',
+        confirmLabel: 'Delete',
         destructive: true,
       );
       if (ok) await controller.deleteBill(b);
@@ -738,7 +738,7 @@ class _BillsCard extends StatelessWidget {
 
   Future<void> _payBill(BuildContext context, Bill bill) async {
     if (controller.accounts.isEmpty) {
-      AppToast.show('Tambahkan wallet sebelum membayar tagihan.');
+      AppToast.show('Add a wallet before paying a bill.');
       return;
     }
     final preferredId = controller.lastUsedAccountId.value;
@@ -750,7 +750,7 @@ class _BillsCard extends StatelessWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Pilih wallet'),
+          title: const Text('Choose a wallet'),
           content: DropdownButtonFormField<Account>(
             initialValue: selectedAccount,
             items: [
@@ -766,11 +766,11 @@ class _BillsCard extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
+              child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, selectedAccount.id),
-              child: const Text('Tandai dibayar'),
+              child: const Text('Mark as paid'),
             ),
           ],
         ),
@@ -800,14 +800,14 @@ class _TransactionsCard extends StatelessWidget {
     final dir = controller.txnFilter.value;
 
     return SectionCard(
-      title: 'Riwayat transaksi',
+      title: 'Recent transactions',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             onChanged: (v) => controller.txnQuery.value = v,
             decoration: const InputDecoration(
-              hintText: 'Cari kategori, catatan, atau akun',
+              hintText: 'Search categories, notes, or wallets',
               prefixIcon: Icon(Icons.search),
             ),
           ),
@@ -815,7 +815,7 @@ class _TransactionsCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpace.xs),
             child: Text(
-              'Ketuk untuk mengubah; geser ke kiri untuk menghapus.',
+              'Tap to edit or swipe left to delete.',
               style: context.text.bodySmall?.copyWith(
                 color: context.scheme.onSurfaceVariant,
               ),
@@ -825,7 +825,7 @@ class _TransactionsCard extends StatelessWidget {
             spacing: AppSpace.sm,
             children: [
               ChoiceChip(
-                label: const Text('Semua'),
+                label: const Text('All'),
                 selected: dir == null,
                 onSelected: (_) => controller.txnFilter.value = null,
               ),
@@ -842,7 +842,7 @@ class _TransactionsCard extends StatelessWidget {
             const EmptyState(
               compact: true,
               icon: Icons.receipt_outlined,
-              title: 'Tidak ada transaksi yang cocok',
+              title: 'No matching transactions',
             )
           else
             AnimatedSize(
@@ -898,8 +898,8 @@ class _TransactionsCard extends StatelessWidget {
                       onPressed: () => controller.txnExpanded.value = !expanded,
                       child: Text(
                         expanded
-                            ? 'Tampilkan lebih sedikit'
-                            : 'Lihat semua (${all.length})',
+                            ? 'Show less'
+                            : 'Show all (${all.length})',
                       ),
                     ),
                 ],
@@ -929,7 +929,7 @@ class _TransactionInsights extends StatelessWidget {
         0,
       ),
       child: SectionCard(
-        title: 'Transaksi bulan ini',
+        title: 'This month',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -937,7 +937,7 @@ class _TransactionInsights extends StatelessWidget {
               children: [
                 Expanded(
                   child: _MiniTotal(
-                    label: 'Masuk',
+                    label: 'Income',
                     value: Formatters.rupiah(month.income),
                     color: context.semantic.income,
                     icon: Icons.south_west,
@@ -946,7 +946,7 @@ class _TransactionInsights extends StatelessWidget {
                 const SizedBox(width: AppSpace.md),
                 Expanded(
                   child: _MiniTotal(
-                    label: 'Keluar',
+                    label: 'Expenses',
                     value: Formatters.rupiah(month.expense),
                     color: context.semantic.expense,
                     icon: Icons.north_east,
@@ -957,7 +957,7 @@ class _TransactionInsights extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: AppSpace.xs),
               child: Text(
-                'Dihitung dari transaksi yang Anda catat saja.',
+                'Based only on transactions you have recorded.',
                 style: context.text.bodySmall?.copyWith(
                   color: context.scheme.onSurfaceVariant,
                 ),
@@ -1014,7 +1014,7 @@ class _MiniTotal extends StatelessWidget {
   );
 }
 
-/// Distribusi pengeluaran per kategori (maks 4 + "Lainnya"), berlabel dan persen.
+/// Expense distribution by category (up to four plus "Other"), with labels and percentages.
 class _CategoryBars extends StatelessWidget {
   const _CategoryBars({required this.byCategory, required this.total});
 
@@ -1030,7 +1030,7 @@ class _CategoryBars extends StatelessWidget {
     final rest = entries.skip(4).fold<int>(0, (s, e) => s + e.value);
     final rows = [
       ...top.map((e) => (e.key, e.value)),
-      if (rest > 0) ('Lainnya', rest),
+      if (rest > 0) ('Other', rest),
     ];
     return Column(
       children: [
@@ -1039,7 +1039,7 @@ class _CategoryBars extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 3),
             child: Semantics(
               label:
-                  '$name ${(value * 100 / total).round()} persen, ${Formatters.rupiah(value)}',
+                  '$name ${(value * 100 / total).round()} percent, ${Formatters.rupiah(value)}',
               child: Row(
                 children: [
                   SizedBox(
@@ -1104,7 +1104,7 @@ class _TransactionRow extends StatelessWidget {
     final color = income ? sem.income : sem.expense;
     return Semantics(
       label:
-          '${income ? "Pemasukan" : "Pengeluaran"} ${Formatters.rupiah(t.amount)}, ${t.category}',
+          '${income ? "Income" : "Expense"} ${Formatters.rupiah(t.amount)}, ${t.category}',
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(

@@ -144,6 +144,6 @@ class CalendarController extends GetxController with DataMutations {
     } else {
       eventsByDay[key] = list;
     }
-    return mutate(() => _deleteEvent(e.id), success: 'Agenda dihapus');
+    return mutate(() => _deleteEvent(e.id), success: 'Event deleted');
   }
 }

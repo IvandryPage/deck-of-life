@@ -62,7 +62,7 @@ class _BillFormState extends State<_BillForm> {
       _note.text = b.note ?? '';
       _due = b.dueAt;
       _repeat = RecurrenceRule.tryParse(b.recurrenceRule)?.kind;
-      // Tanpa ini, menyimpan perubahan akan diam-diam menghapus pengingat lama.
+      // Preserve the existing reminder when editing a bill.
       Get.find<ReminderRepository>()
           .getForTarget(ReminderTargetType.bill, b.id)
           .then((r) {
@@ -84,7 +84,7 @@ class _BillFormState extends State<_BillForm> {
   Future<void> _save() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (_due == null) {
-      setState(() => _dueError = 'Tanggal jatuh tempo wajib diisi');
+      setState(() => _dueError = 'Due date is required');
       return;
     }
     if (!valid) return;
@@ -129,7 +129,7 @@ class _BillFormState extends State<_BillForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(isNew ? 'Tagihan baru' : 'Ubah tagihan',
+            Text(isNew ? 'New bill' : 'Edit bill',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpace.lg),
             // Nominal sebagai elemen utama.
@@ -143,12 +143,12 @@ class _BillFormState extends State<_BillForm> {
                   .displaySmall
                   ?.copyWith(fontFeatures: AppText.tabular),
               decoration: const InputDecoration(
-                labelText: 'Nominal',
+                labelText: 'Amount',
                 prefixText: 'Rp ',
               ),
               validator: (v) {
                 final n = Formatters.parseRupiah(v ?? '');
-                return (n == null || n <= 0) ? 'Isi nominal lebih dari 0' : null;
+                return (n == null || n <= 0) ? 'Enter an amount greater than 0' : null;
               },
             ),
             const SizedBox(height: AppSpace.md),
@@ -156,18 +156,18 @@ class _BillFormState extends State<_BillForm> {
               controller: _title,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: 'Nama tagihan',
-                helperText: 'mis. Kost bulan November',
+                labelText: 'Bill name',
+                helperText: 'e.g. November rent',
               ),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Nama tagihan wajib diisi' : null,
+                  (v == null || v.trim().isEmpty) ? 'Bill name is required' : null,
             ),
             const SizedBox(height: AppSpace.md),
             DateTimeField(
-              label: 'Jatuh tempo',
+              label: 'Due date',
               value: _due,
               dateOnly: true,
-              emptyText: 'Pilih tanggal',
+              emptyText: 'Choose a date',
               onChanged: (v) => setState(() {
                 _due = v;
                 _dueError = null;
@@ -189,12 +189,12 @@ class _BillFormState extends State<_BillForm> {
                 DropdownButtonFormField<RecurrenceKind?>(
                   initialValue: _repeat,
                   decoration: const InputDecoration(
-                    labelText: 'Ulangi',
-                    helperText: 'Tagihan berikutnya dibuat otomatis saat ini dibayar',
+                    labelText: 'Repeat',
+                    helperText: 'The next bill is created automatically when this one is paid',
                   ),
                   items: [
                     const DropdownMenuItem(
-                        value: null, child: Text('Tidak berulang')),
+                        value: null, child: Text('Does not repeat')),
                     for (final k in RecurrenceKind.values)
                       DropdownMenuItem(value: k, child: Text(k.label)),
                   ],
@@ -207,15 +207,15 @@ class _BillFormState extends State<_BillForm> {
                         ? null
                         : DateTime(_due!.year, _due!.month, _due!.day, 9),
                     presets: const [
-                      ReminderPreset('Hari H', Duration.zero),
-                      ReminderPreset('1 hari sebelum', Duration(days: 1)),
-                      ReminderPreset('3 hari sebelum', Duration(days: 3)),
+                      ReminderPreset('On the due date', Duration.zero),
+                      ReminderPreset('1 day before', Duration(days: 1)),
+                      ReminderPreset('3 days before', Duration(days: 3)),
                     ],
                     onChanged: (v) => setState(() => _reminder = v),
                   ),
                 TextFormField(
                   controller: _note,
-                  decoration: const InputDecoration(labelText: 'Catatan'),
+                  decoration: const InputDecoration(labelText: 'Notes'),
                 ),
               ],
             ),
@@ -228,7 +228,7 @@ class _BillFormState extends State<_BillForm> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Simpan'),
+                  : const Text('Save'),
             ),
           ],
         ),

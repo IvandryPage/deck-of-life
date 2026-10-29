@@ -66,7 +66,7 @@ class _TransferFormState extends State<_TransferForm> {
         _note.text = outgoing.single.note ?? '';
         _date = outgoing.single.occurredAt;
       } else {
-        _error = 'Pasangan transfer tidak ditemukan.';
+        _error = 'Transfer pair not found.';
       }
     } else if (accounts.isNotEmpty) {
       final lastUsed = widget.controller.lastUsedAccountId.value;
@@ -100,11 +100,11 @@ class _TransferFormState extends State<_TransferForm> {
     final from = _from;
     final to = _to;
     if (amount == null || amount <= 0) {
-      setState(() => _error = 'Isi nominal lebih dari 0');
+      setState(() => _error = 'Enter an amount greater than 0');
       return;
     }
     if (from == null || to == null || from.id == to.id) {
-      setState(() => _error = 'Pilih dua wallet yang berbeda');
+      setState(() => _error = 'Choose two different wallets');
       return;
     }
     setState(() {
@@ -157,9 +157,9 @@ class _TransferFormState extends State<_TransferForm> {
         child: EmptyState(
           compact: true,
           icon: Icons.swap_horiz,
-          title: 'Tambahkan dua wallet',
-          message: 'Transfer membutuhkan wallet asal dan tujuan.',
-          actionLabel: 'Tambah wallet',
+          title: 'Add two wallets',
+          message: 'A transfer needs a source and destination wallet.',
+          actionLabel: 'Add wallet',
           onAction: () {
             Navigator.of(context).pop();
             showAddAccountDialog(context, widget.controller);
@@ -173,8 +173,8 @@ class _TransferFormState extends State<_TransferForm> {
         child: EmptyState(
           compact: true,
           icon: Icons.warning_amber_outlined,
-          title: 'Transfer tidak tersedia',
-          message: _error ?? 'Wallet asal atau tujuan sudah tidak tersedia.',
+          title: 'Transfer unavailable',
+          message: _error ?? 'The source or destination wallet is no longer available.',
         ),
       );
     }
@@ -194,7 +194,7 @@ class _TransferFormState extends State<_TransferForm> {
           const SizedBox(height: AppSpace.lg),
           DropdownButtonFormField<Account>(
             initialValue: _from,
-            decoration: const InputDecoration(labelText: 'Dari wallet'),
+            decoration: const InputDecoration(labelText: 'From wallet'),
             items: [
               for (final account in accounts)
                 DropdownMenuItem(value: account, child: Text(account.name)),
@@ -209,7 +209,7 @@ class _TransferFormState extends State<_TransferForm> {
           const SizedBox(height: AppSpace.md),
           DropdownButtonFormField<Account>(
             initialValue: _to,
-            decoration: const InputDecoration(labelText: 'Ke wallet'),
+            decoration: const InputDecoration(labelText: 'To wallet'),
             items: [
               for (final account in accounts.where((a) => a.id != _from?.id))
                 DropdownMenuItem(value: account, child: Text(account.name)),
@@ -223,7 +223,7 @@ class _TransferFormState extends State<_TransferForm> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
-              labelText: 'Nominal',
+              labelText: 'Amount',
               prefixText: 'Rp ',
               errorText: _error,
             ),
@@ -238,7 +238,7 @@ class _TransferFormState extends State<_TransferForm> {
           TextField(
             controller: _note,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Catatan (opsional)'),
+            decoration: const InputDecoration(labelText: 'Notes (optional)'),
           ),
           const SizedBox(height: AppSpace.lg),
           FilledButton(

@@ -107,10 +107,10 @@ class TasksController extends GetxController with DataMutations {
     });
     if (!ok) return;
     if (reopening) {
-      AppToast.show('Tugas dibuka kembali');
+      AppToast.show('Task reopened');
       return;
     }
-    AppToast.undoable('Tugas selesai', () async {
+    AppToast.undoable('Task completed', () async {
       // Urungkan juga menghapus kemunculan berikutnya yang baru dibuat
       // (tugas berulang) agar tidak tersisa duplikat.
       await mutate(() => _changeStatus.undoDone(task.id, spawnedId: spawned?.id));
@@ -136,7 +136,7 @@ class TasksController extends GetxController with DataMutations {
           isNew: true,
         );
       },
-      success: 'Tugas ditambahkan',
+      success: 'Task added',
     );
   }
 }

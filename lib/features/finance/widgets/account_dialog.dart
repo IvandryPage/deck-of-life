@@ -8,14 +8,14 @@ import '../controllers/finance_controller.dart';
 Future<void> showAddAccountDialog(BuildContext context, FinanceController c) async {
   final r = await showFieldsDialog(
     context,
-    title: 'Akun baru',
+    title: 'New wallet',
     fields: [
-      const FieldSpec(label: 'Nama', helper: 'mis. BCA, Uang tunai, ShopeePay'),
+      const FieldSpec(label: 'Name', helper: 'e.g. Cash, checking account, e-wallet'),
       FieldSpec(
-        label: 'Jenis',
+        label: 'Type',
         options: [for (final t in AccountType.values) t.label],
       ),
-      const FieldSpec(label: 'Saldo sekarang (Rp)', numeric: true),
+      const FieldSpec(label: 'Current balance (Rp)', numeric: true),
     ],
   );
   if (r == null) return;

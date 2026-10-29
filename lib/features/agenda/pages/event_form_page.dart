@@ -38,7 +38,7 @@ class _EventFormPageState extends State<EventFormPage> {
   @override
   void initState() {
     super.initState();
-    // Argumen: Event (ubah) atau DateTime (hari yang dipilih di Kalender).
+    // Arguments are an event to edit or a date selected in Calendar.
     final arg = Get.arguments;
     _existing = arg is Event ? arg : null;
     final presetDay = arg is DateTime ? arg : null;
@@ -59,7 +59,7 @@ class _EventFormPageState extends State<EventFormPage> {
             }
           });
     } else if (presetDay != null) {
-      // Hari dari Kalender; jam awal 09:00 yang bisa diubah (bukan data palsu).
+      // Start at 9:00 AM for dates opened from Calendar.
       _start = DateTime(presetDay.year, presetDay.month, presetDay.day, 9);
     }
   }
@@ -75,7 +75,7 @@ class _EventFormPageState extends State<EventFormPage> {
   Future<void> _save() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (_start == null) {
-      setState(() => _timeError = 'Waktu mulai wajib diisi');
+      setState(() => _timeError = 'Start time is required');
       return;
     }
     if (!valid) return;
@@ -110,7 +110,7 @@ class _EventFormPageState extends State<EventFormPage> {
       Get.find<DataRevision>().bump();
       final msg = result.reminder?.message;
       Get.back<void>();
-      AppToast.show(msg ?? 'Agenda tersimpan', isError: msg != null);
+      AppToast.show(msg ?? 'Event saved', isError: msg != null);
     } catch (err, st) {
       AppLog.error('event.save', err, st);
       if (mounted) setState(() => _saving = false);
@@ -131,7 +131,7 @@ class _EventFormPageState extends State<EventFormPage> {
   Widget build(BuildContext context) {
     final isNew = _existing == null;
     return FormPage(
-      title: isNew ? 'Agenda baru' : 'Ubah agenda',
+      title: isNew ? 'New event' : 'Edit event',
       formKey: _formKey,
       onSave: _save,
       saving: _saving,
@@ -141,15 +141,15 @@ class _EventFormPageState extends State<EventFormPage> {
           autofocus: isNew,
           textCapitalization: TextCapitalization.sentences,
           style: Theme.of(context).textTheme.titleMedium,
-          decoration: const InputDecoration(labelText: 'Judul agenda'),
+          decoration: const InputDecoration(labelText: 'Event title'),
           validator: (v) => (v == null || v.trim().isEmpty)
-              ? 'Judul agenda wajib diisi'
+              ? 'Event title is required'
               : null,
         ),
         DateTimeField(
-          label: 'Mulai',
+          label: 'Starts',
           value: _start,
-          emptyText: 'Pilih tanggal dan jam',
+          emptyText: 'Choose a date and time',
           onChanged: (v) => setState(() {
             _start = v;
             _timeError = null;
@@ -165,9 +165,9 @@ class _EventFormPageState extends State<EventFormPage> {
             value: _reminder,
             anchor: _start,
             presets: const [
-              ReminderPreset('15 menit sebelum', Duration(minutes: 15)),
-              ReminderPreset('1 jam sebelum', Duration(hours: 1)),
-              ReminderPreset('1 hari sebelum', Duration(days: 1)),
+              ReminderPreset('15 minutes before', Duration(minutes: 15)),
+              ReminderPreset('1 hour before', Duration(hours: 1)),
+              ReminderPreset('1 day before', Duration(days: 1)),
             ],
             onChanged: (v) => setState(() => _reminder = v),
           )
@@ -175,7 +175,7 @@ class _EventFormPageState extends State<EventFormPage> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'Pengingat berulang belum tersedia. Acara akan muncul di setiap tanggal yang sesuai.',
+              'Recurring reminders are not available yet. Events will still appear on each matching date.',
             ),
           ),
         AdvancedOptions(
@@ -183,11 +183,11 @@ class _EventFormPageState extends State<EventFormPage> {
           children: [
             DropdownButtonFormField<RecurrenceKind?>(
               initialValue: _repeat,
-              decoration: const InputDecoration(labelText: 'Ulangi'),
+              decoration: const InputDecoration(labelText: 'Repeat'),
               items: [
                 const DropdownMenuItem(
                   value: null,
-                  child: Text('Tidak berulang'),
+                  child: Text('Does not repeat'),
                 ),
                 for (final kind in const [
                   RecurrenceKind.daily,
@@ -202,9 +202,9 @@ class _EventFormPageState extends State<EventFormPage> {
               }),
             ),
             DateTimeField(
-              label: 'Selesai',
+              label: 'Ends',
               value: _end,
-              emptyText: 'Tanpa waktu selesai',
+              emptyText: 'No end time',
               defaultTime: _start != null
                   ? TimeOfDay(
                       hour: (_start!.hour + 1) % 24,
@@ -214,7 +214,7 @@ class _EventFormPageState extends State<EventFormPage> {
               onChanged: (v) => setState(() => _end = v),
             ),
             EnumDropdown<EventType>(
-              label: 'Jenis',
+              label: 'Type',
               value: _type,
               items: EventType.values,
               labelOf: (t) => t.label,
@@ -222,7 +222,7 @@ class _EventFormPageState extends State<EventFormPage> {
             ),
             TextFormField(
               controller: _location,
-              decoration: const InputDecoration(labelText: 'Lokasi'),
+              decoration: const InputDecoration(labelText: 'Location'),
             ),
             TextFormField(
               controller: _description,
@@ -230,7 +230,7 @@ class _EventFormPageState extends State<EventFormPage> {
               maxLines: 5,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: 'Catatan',
+                labelText: 'Notes',
                 alignLabelWithHint: true,
               ),
             ),

@@ -87,7 +87,7 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
     final options = all.where((t) => !linkedIds.contains(t.id)).toList();
     if (!mounted) return;
     if (options.isEmpty) {
-      AppToast.show('Belum ada tugas aktif untuk dihubungkan.');
+      AppToast.show('No active tasks to link.');
       return;
     }
     final picked = await showModalBottomSheet<Task>(
@@ -102,7 +102,7 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('Hubungkan ke tugas'),
+              child: Text('Link to a task'),
             ),
             for (final t in options)
               ListTile(
@@ -117,21 +117,21 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
     if (picked == null) return;
     await _run(
       () => _tasks.linkSavedItem(picked.id, _id),
-      success: 'Dihubungkan ke "${picked.title}"',
+      success: 'Linked to "${picked.title}"',
     );
   }
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
-      AppToast.show('Tautan tidak valid.', isError: true);
+      AppToast.show('This link is invalid.', isError: true);
       return;
     }
     try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok) AppToast.show('Tidak ada aplikasi untuk membuka tautan ini.', isError: true);
+      if (!ok) AppToast.show('No app is available to open this link.', isError: true);
     } catch (_) {
-      AppToast.show('Tautan tidak bisa dibuka (mungkin sedang offline).', isError: true);
+      AppToast.show('Could not open the link. You may be offline.', isError: true);
     }
   }
 
@@ -149,18 +149,18 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
         appBar: AppBar(),
         body: const EmptyState(
           icon: Icons.search_off,
-          title: 'Item tidak ditemukan',
-          message: 'Mungkin sudah dihapus.',
+          title: 'Note not found',
+          message: 'It may have been deleted.',
         ),
       );
     }
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detail'),
+        title: const Text('Note'),
         actions: [
           IconButton(
-            tooltip: 'Ubah',
+            tooltip: 'Edit note',
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => Get.toNamed<dynamic>(
               Routes.savedItemForm,
@@ -172,34 +172,34 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
               if (v == 'archive') {
                 await _run(
                   () => Get.find<ArchiveSavedItem>()(item.id),
-                  success: 'Dipindahkan ke arsip',
+                  success: 'Moved to Archive',
                 );
               } else if (v == 'unarchive') {
                 await _run(
                   () => _items.setReviewStatus(item.id, ReviewStatus.reviewed),
-                  success: 'Dikembalikan dari arsip',
+                  success: 'Restored from Archive',
                 );
               } else if (v == 'delete') {
                 final ok = await confirmDialog(
                   context,
-                  title: 'Hapus permanen?',
+                  title: 'Delete permanently?',
                   message:
-                      'Item ini dan hubungannya dengan tugas akan dihapus. Tindakan ini tidak bisa dibatalkan. Gunakan Arsip bila hanya ingin menyembunyikan.',
-                  confirmLabel: 'Hapus',
+                      'This note and its task links will be deleted permanently. This cannot be undone. Archive it if you only want to hide it.',
+                  confirmLabel: 'Delete',
                   destructive: true,
                 );
                 if (!ok) return;
                 await _run(() => Get.find<DeleteSavedItem>()(item.id));
                 Get.back<void>();
-                AppToast.show('Item dihapus');
+                AppToast.show('Note deleted');
               }
             },
             itemBuilder: (_) => [
               if (item.reviewStatus == ReviewStatus.archived)
-                const PopupMenuItem(value: 'unarchive', child: Text('Keluarkan dari arsip'))
+                const PopupMenuItem(value: 'unarchive', child: Text('Restore from Archive'))
               else
-                const PopupMenuItem(value: 'archive', child: Text('Arsipkan')),
-              const PopupMenuItem(value: 'delete', child: Text('Hapus permanen')),
+                const PopupMenuItem(value: 'archive', child: Text('Archive')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete permanently')),
             ],
           ),
         ],
@@ -229,20 +229,20 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
               child: ListTile(
                 leading: const Icon(Icons.link),
                 title: Text(item.sourceUrl!, maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: const Text('Tautan sumber (isinya tidak ikut tersimpan)'),
+                subtitle:                 const Text('Source link (content is not saved)'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      tooltip: 'Salin tautan',
+                      tooltip: 'Copy link',
                       icon: const Icon(Icons.copy),
                       onPressed: () async {
                         await Clipboard.setData(ClipboardData(text: item.sourceUrl!));
-                        AppToast.show('Tautan disalin');
+                        AppToast.show('Link copied');
                       },
                     ),
                     IconButton(
-                      tooltip: 'Buka tautan',
+                      tooltip: 'Open link',
                       icon: const Icon(Icons.open_in_new),
                       onPressed: () => _openUrl(item.sourceUrl!),
                     ),
@@ -252,26 +252,26 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
             ),
           ],
           const SizedBox(height: 16),
-          if (item.sourceLabel != null) KeyValueRow('Sumber', item.sourceLabel!),
-          if (item.contextNote != null) KeyValueRow('Konteks', item.contextNote!),
-          KeyValueRow('Disimpan', Formatters.dateTime(item.createdAt)),
+          if (item.sourceLabel != null) KeyValueRow('Source', item.sourceLabel!),
+          if (item.contextNote != null) KeyValueRow('Context', item.contextNote!),
+          KeyValueRow('Saved', Formatters.dateTime(item.createdAt)),
           if (item.updatedAt.difference(item.createdAt).inMinutes > 0)
-            KeyValueRow('Diubah', Formatters.dateTime(item.updatedAt)),
+            KeyValueRow('Edited', Formatters.dateTime(item.updatedAt)),
           const SizedBox(height: 16),
           if (item.needsReview)
             FilledButton.tonalIcon(
               onPressed: () => _run(
                 () => _items.setReviewStatus(item.id, ReviewStatus.reviewed),
-                success: 'Ditandai sudah diperiksa',
+                success: 'Marked as reviewed',
               ),
               icon: const Icon(Icons.done_all),
-              label: const Text('Tandai sudah diperiksa'),
+              label: const Text('Mark as reviewed'),
             ),
           const SizedBox(height: 24),
-          Text('Tugas terkait', style: theme.textTheme.titleMedium),
+          Text('Linked tasks', style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Menyimpan informasi tidak otomatis membuat tugas.',
+            'Saving a note does not automatically create a task.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
@@ -282,11 +282,11 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
               subtitle: Text(t.status.label),
               onTap: () => Get.toNamed<dynamic>(Routes.taskDetail, arguments: t.id),
               trailing: IconButton(
-                tooltip: 'Lepas hubungan',
+                tooltip: 'Unlink task',
                 icon: const Icon(Icons.link_off),
                 onPressed: () => _run(
                   () => _tasks.unlinkSavedItem(t.id, item.id),
-                  success: 'Hubungan dilepas',
+                  success: 'Task unlinked',
                 ),
               ),
             ),
@@ -306,12 +306,12 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
                   ),
                 ),
                 icon: const Icon(Icons.add_task),
-                label: const Text('Buat tugas dari item ini'),
+                label: const Text('Make a task from this note'),
               ),
               OutlinedButton.icon(
                 onPressed: _linkExistingTask,
                 icon: const Icon(Icons.link),
-                label: const Text('Hubungkan ke tugas'),
+                label: const Text('Link to a task'),
               ),
             ],
           ),

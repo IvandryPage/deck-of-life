@@ -19,8 +19,8 @@ class LocalNotificationService implements NotificationScheduler {
   static const AndroidNotificationDetails _androidDetails =
       AndroidNotificationDetails(
     'reminders',
-    'Pengingat',
-    channelDescription: 'Deadline, agenda, tagihan, rutinitas, dan tinjauan',
+    'Reminders',
+    channelDescription: 'Tasks, events, bills, routines, and reviews',
     importance: Importance.defaultImportance,
     priority: Priority.defaultPriority,
     icon: 'ic_stat_notify',
@@ -97,7 +97,7 @@ class LocalNotificationService implements NotificationScheduler {
       );
     } catch (e) {
       throw NotificationSchedulingException(
-        'Notifikasi tidak bisa dijadwalkan.',
+        'Could not schedule notification.',
         e,
       );
     }
@@ -129,7 +129,7 @@ class LocalNotificationService implements NotificationScheduler {
       );
     } catch (e) {
       throw NotificationSchedulingException(
-        'Pengingat harian tidak bisa dijadwalkan.',
+        'Could not schedule daily reminder.',
         e,
       );
     }

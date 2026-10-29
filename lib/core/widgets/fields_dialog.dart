@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Spesifikasi satu kolom pada [showFieldsDialog].
+/// Specification for one field in [showFieldsDialog].
 class FieldSpec {
   const FieldSpec({
     required this.label,
@@ -20,25 +20,24 @@ class FieldSpec {
   final bool required;
   final String? helper;
 
-  /// Hanya angka (untuk nominal rupiah / jumlah hari).
+  /// Digits only, for rupiah amounts or day counts.
   final bool numeric;
   final bool multiline;
 
-  /// Bila diisi, kolom ditampilkan sebagai dropdown; hasil = indeks pilihan (string).
+  /// When set, renders a dropdown and returns the selected index as a string.
   final List<String>? options;
   final int optionInitial;
 
-  /// Disembunyikan di balik tombol kecil "Opsi lanjutan" sampai dibuka.
+  /// Hidden behind a "More options" button until expanded.
   final bool advanced;
 }
 
-/// Dialog isian sederhana. Mengembalikan nilai tiap kolom (urutan sama dengan
-/// [fields]) atau null bila dibatalkan.
+/// Simple input dialog. Returns values in field order, or null when canceled.
 Future<List<String>?> showFieldsDialog(
   BuildContext context, {
   required String title,
   required List<FieldSpec> fields,
-  String confirmLabel = 'Simpan',
+  String confirmLabel = 'Save',
   String? message,
 }) {
   return showDialog<List<String>>(
@@ -133,7 +132,7 @@ class _FieldsDialogState extends State<_FieldsDialog> {
                     onPressed: () => setState(() => _showAdvanced = true),
                     icon: const Icon(Icons.expand_more, size: 18),
                     iconAlignment: IconAlignment.end,
-                    label: const Text('Opsi lanjutan'),
+                    label: const Text('More options'),
                   ),
                 ),
             ],
@@ -143,7 +142,7 @@ class _FieldsDialogState extends State<_FieldsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Batal'),
+          child: const Text('Cancel'),
         ),
         FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
       ],
@@ -180,12 +179,12 @@ class _FieldsDialogState extends State<_FieldsDialog> {
           ? TextCapitalization.none
           : TextCapitalization.sentences,
       decoration: InputDecoration(
-        labelText: f.required ? f.label : '${f.label} (opsional)',
+        labelText: f.required ? f.label : '${f.label} (optional)',
         helperText: f.helper,
       ),
       validator: (v) {
         if (f.required && (v == null || v.trim().isEmpty)) {
-          return '${f.label} wajib diisi';
+          return '${f.label} is required';
         }
         return null;
       },

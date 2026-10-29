@@ -244,40 +244,42 @@ class BackupValidator {
     try {
       decoded = jsonDecode(jsonText);
     } on FormatException catch (e) {
-      throw BackupFormatException('Berkas ini bukan JSON yang valid.', e);
+      throw BackupFormatException('This file is not valid JSON.', e);
     }
     if (decoded is! Map<String, dynamic>) {
       throw const BackupFormatException(
-        'Struktur berkas backup tidak dikenali.',
+        'The backup file structure is not recognized.',
       );
     }
     if (decoded['format'] != BackupSchema.formatId) {
-      throw const BackupFormatException(
-        'Berkas ini bukan backup Deck of Life.',
-      );
+      throw const BackupFormatException('This is not a Deck of Life backup.');
     }
     final version = decoded['schema_version'];
     if (version is! int || version < 1) {
-      throw const BackupFormatException('Versi skema backup tidak valid.');
+      throw const BackupFormatException(
+        'The backup schema version is invalid.',
+      );
     }
     if (version > currentSchemaVersion) {
       throw const BackupFormatException(
-        'Backup dibuat oleh versi aplikasi yang lebih baru. '
-        'Perbarui aplikasi sebelum memulihkan.',
+        'This backup was created by a newer version of the app. '
+        'Update the app before restoring.',
       );
     }
     final spec = _specFor(version);
 
     final rawData = decoded['data'];
     if (rawData is! Map<String, dynamic>) {
-      throw const BackupFormatException('Bagian data backup tidak ditemukan.');
+      throw const BackupFormatException(
+        'The backup data section was not found.',
+      );
     }
 
     final checksum = decoded['checksum'];
     if (checksum != null &&
         (checksum is! String || checksum != BackupSchema.checksumOf(rawData))) {
       throw const BackupFormatException(
-        'Isi backup tidak cocok dengan checksum; berkas mungkin rusak atau diubah.',
+        'The backup checksum does not match; the file may be damaged or modified.',
       );
     }
 
@@ -285,7 +287,9 @@ class BackupValidator {
     for (final table in BackupSchema.tables) {
       final rows = rawData[table];
       if (rows is! List) {
-        throw ImportValidationException('Tabel "$table" tidak ada di backup.');
+        throw ImportValidationException(
+          'Table "$table" is missing from the backup.',
+        );
       }
       final columns = spec[table]!;
       final out = <Map<String, Object?>>[];
@@ -335,7 +339,9 @@ class BackupValidator {
     if (version == 2) return BackupSchema.v2;
     if (version == 3) return BackupSchema.v3;
     if (version == 4) return BackupSchema.v4;
-    throw BackupFormatException('Versi skema backup $version tidak didukung.');
+    throw BackupFormatException(
+      'Backup schema version $version is not supported.',
+    );
   }
 
   static Map<String, Object?> _validateRow(
@@ -345,20 +351,20 @@ class BackupValidator {
     Map<String, _Col> columns,
   ) {
     if (raw is! Map) {
-      throw ImportValidationException('Baris ${index + 1} di "$table" rusak.');
+      throw ImportValidationException(
+        'Row ${index + 1} in "$table" is malformed.',
+      );
     }
     final row = <String, Object?>{};
     for (final key in raw.keys) {
       if (key is! String || !columns.containsKey(key)) {
-        throw ImportValidationException(
-          'Kolom tidak dikenal "$key" di "$table".',
-        );
+        throw ImportValidationException('Unknown column "$key" in "$table".');
       }
     }
     for (final entry in columns.entries) {
       if (!raw.containsKey(entry.key)) {
         throw ImportValidationException(
-          'Kolom "${entry.key}" tidak ditemukan (baris ${index + 1} di "$table").',
+          'Column "${entry.key}" is missing (row ${index + 1} in "$table").',
         );
       }
       final value = raw[entry.key];
@@ -366,7 +372,7 @@ class BackupValidator {
       if (value == null) {
         if (!col.nullable) {
           throw ImportValidationException(
-            'Kolom "${entry.key}" wajib diisi (baris ${index + 1} di "$table").',
+            'Column "${entry.key}" is required (row ${index + 1} in "$table").',
           );
         }
         row[entry.key] = null;
@@ -375,7 +381,7 @@ class BackupValidator {
       final ok = col.isInt ? value is int : value is String;
       if (!ok) {
         throw ImportValidationException(
-          'Tipe data kolom "${entry.key}" salah (baris ${index + 1} di "$table").',
+          'Column "${entry.key}" has the wrong type (row ${index + 1} in "$table").',
         );
       }
       row[entry.key] = value;
@@ -391,7 +397,7 @@ class BackupValidator {
       final seen = <Object?>{};
       for (final row in data[table]!) {
         if (!seen.add(row[keyCol])) {
-          throw ImportValidationException('ID ganda di tabel "$table".');
+          throw ImportValidationException('Duplicate ID in table "$table".');
         }
       }
     }
@@ -399,14 +405,16 @@ class BackupValidator {
     for (final row in data['task_saved_items']!) {
       if (!pairs.add('${row['task_id']}|${row['saved_item_id']}')) {
         throw const ImportValidationException(
-          'Relasi tugas-item ganda di backup.',
+          'Duplicate task-note link in the backup.',
         );
       }
     }
     final notificationIds = <Object?>{};
     for (final row in data['reminders']!) {
       if (!notificationIds.add(row['notification_id'])) {
-        throw const ImportValidationException('ID notifikasi ganda di backup.');
+        throw const ImportValidationException(
+          'Duplicate notification ID in the backup.',
+        );
       }
     }
   }
@@ -431,35 +439,37 @@ class BackupValidator {
     }) {
       if (value == null && nullable) return;
       if (!parents.contains(value)) {
-        throw ImportValidationException('Relasi rusak: $what tidak ditemukan.');
+        throw ImportValidationException(
+          'Broken relation: $what was not found.',
+        );
       }
     }
 
     for (final r in data['task_saved_items']!) {
-      need(tasks, r['task_id'], 'tugas pada relasi item');
-      need(items, r['saved_item_id'], 'item tersimpan pada relasi tugas');
+      need(tasks, r['task_id'], 'task in note link');
+      need(items, r['saved_item_id'], 'note in task link');
     }
     for (final r in data['events']!) {
-      need(tasks, r['linked_task_id'], 'tugas pada agenda', nullable: true);
+      need(tasks, r['linked_task_id'], 'task linked to event', nullable: true);
       need(
         items,
         r['linked_saved_item_id'],
-        'item pada agenda',
+        'note linked to event',
         nullable: true,
       );
     }
     for (final r in data['transactions']!) {
-      need(accounts, r['account_id'], 'akun pada transaksi');
-      need(bills, r['bill_id'], 'tagihan pada transaksi', nullable: true);
+      need(accounts, r['account_id'], 'account on transaction');
+      need(bills, r['bill_id'], 'bill on transaction', nullable: true);
     }
     for (final r in data['balance_adjustments']!) {
-      need(accounts, r['account_id'], 'akun pada penyesuaian saldo');
+      need(accounts, r['account_id'], 'account on balance adjustment');
     }
     for (final r in data['bills']!) {
-      need(accounts, r['account_id'], 'akun pada tagihan', nullable: true);
+      need(accounts, r['account_id'], 'account on bill', nullable: true);
     }
     for (final r in data['routine_logs']!) {
-      need(routines, r['routine_id'], 'rutinitas pada riwayat');
+      need(routines, r['routine_id'], 'routine on history entry');
     }
   }
 }

@@ -11,27 +11,27 @@ import '../../shell/controllers/shell_controller.dart';
 import '../controllers/calendar_controller.dart';
 
 const List<String> _weekdays = [
-  'Sen',
-  'Sel',
-  'Rab',
-  'Kam',
-  'Jum',
-  'Sab',
-  'Min',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+  'Sun',
 ];
 const List<String> _months = [
-  'Januari',
-  'Februari',
-  'Maret',
+  'January',
+  'February',
+  'March',
   'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
+  'May',
+  'June',
+  'July',
+  'August',
   'September',
-  'Oktober',
+  'October',
   'November',
-  'Desember',
+  'December',
 ];
 
 /// Tab Kalender: bulan ringkas di atas, daftar hari terpilih di bawah.
@@ -93,7 +93,7 @@ class _MonthHeader extends GetView<CalendarController> {
         child: Row(
           children: [
             IconButton(
-              tooltip: 'Bulan sebelumnya',
+              tooltip: 'Previous month',
               icon: const Icon(Icons.chevron_left),
               onPressed: () => controller.shiftMonth(-1),
             ),
@@ -111,10 +111,10 @@ class _MonthHeader extends GetView<CalendarController> {
             if (!isCurrent)
               TextButton(
                 onPressed: controller.goToday,
-                child: const Text('Hari ini'),
+                child: const Text('Today'),
               ),
             IconButton(
-              tooltip: 'Bulan berikutnya',
+              tooltip: 'Next month',
               icon: const Icon(Icons.chevron_right),
               onPressed: () => controller.shiftMonth(1),
             ),
@@ -246,8 +246,8 @@ class _DayCell extends StatelessWidget {
       selected: isSelected,
       label:
           '${Formatters.date(date)}'
-          '${isToday ? ', hari ini' : ''}'
-          '${markers > 0 ? ', $markers entri' : ''}',
+          '${isToday ? ', today' : ''}'
+          '${markers > 0 ? ', $markers items' : ''}',
       child: InkResponse(
         onTap: onTap,
         radius: AppSize.calendarCell / 2 + 4,
@@ -311,12 +311,12 @@ class _DayHeader extends StatelessWidget {
     final today = DateTimeUtils.startOfDay(DateTime.now());
     return SectionHeader(
       DateTimeUtils.isSameDay(day, today)
-          ? 'Hari ini · ${Formatters.dateShort(day)}'
+          ? 'Today · ${Formatters.dateShort(day)}'
           : Formatters.dateShort(day),
       trailing: TextButton.icon(
         onPressed: () => Get.toNamed<dynamic>(Routes.eventForm, arguments: day),
         icon: const Icon(Icons.add, size: AppSize.iconSm),
-        label: const Text('Agenda'),
+        label: const Text('Add event'),
       ),
     );
   }
@@ -337,10 +337,9 @@ class _DayAgenda extends GetView<CalendarController> {
         return EmptyState(
           compact: true,
           icon: Icons.event_available_outlined,
-          title: 'Tidak ada agenda',
-          message:
-              'Hari ini kosong. Tambahkan agenda cukup dengan judul dan waktu.',
-          actionLabel: 'Agenda baru',
+          title: 'Nothing scheduled',
+          message: 'Your day is clear. Add an event with just a title and time.',
+          actionLabel: 'Add event',
           onAction: () =>
               Get.toNamed<dynamic>(Routes.eventForm, arguments: day),
         );
@@ -355,7 +354,7 @@ class _DayAgenda extends GetView<CalendarController> {
             for (final t in tasks)
               _InfoRow(
                 icon: Icons.flag_outlined,
-                kind: 'Deadline tugas',
+                kind: 'Task deadline',
                 title: t.title,
                 trailing: Formatters.time(t.dueAt!),
                 onTap: () =>
@@ -364,7 +363,7 @@ class _DayAgenda extends GetView<CalendarController> {
             for (final b in bills)
               _InfoRow(
                 icon: Icons.receipt_long_outlined,
-                kind: 'Tagihan jatuh tempo',
+                kind: 'Bill due',
                 title: b.title,
                 trailing: Formatters.rupiah(b.amount),
                 onTap: () => Get.find<ShellController>().goTo(
@@ -400,11 +399,11 @@ class _EventRow extends GetView<CalendarController> {
       ),
       confirmDismiss: (_) => confirmDialog(
         context,
-        title: 'Hapus agenda?',
+        title: 'Delete event?',
         message: e.isRecurring
-            ? 'Seluruh rangkaian "${e.title}" dan pengingatnya akan dihapus.'
-            : '"${e.title}" dan pengingatnya akan dihapus.',
-        confirmLabel: 'Hapus',
+            ? 'The entire "${e.title}" series and its reminder will be deleted.'
+            : '"${e.title}" and its reminder will be deleted.',
+        confirmLabel: 'Delete',
         destructive: true,
       ),
       onDismissed: (_) => controller.remove(e),
@@ -434,19 +433,19 @@ class _EventRow extends GetView<CalendarController> {
             Text(
               [
                 e.eventType.label,
-                if (e.endsAt != null) 's.d. ${Formatters.time(e.endsAt!)}',
+                if (e.endsAt != null) 'Until ${Formatters.time(e.endsAt!)}',
                 if (e.location != null) e.location!,
               ].join(' · '),
             ),
-            if (e.isRecurring) const StatusTag('Berulang', icon: Icons.repeat),
+            if (e.isRecurring) const StatusTag('Repeats', icon: Icons.repeat),
             if (ongoing)
               const StatusTag(
-                'Berlangsung',
+                'In progress',
                 icon: Icons.play_arrow,
                 tone: TagTone.success,
               )
             else if (over)
-              const StatusTag('Selesai', icon: Icons.check),
+              const StatusTag('Ended', icon: Icons.check),
           ],
         ),
         onTap: () => Get.toNamed<dynamic>(Routes.eventForm, arguments: e),

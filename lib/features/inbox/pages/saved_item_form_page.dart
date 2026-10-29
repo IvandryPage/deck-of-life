@@ -14,8 +14,7 @@ import '../../../domain/usecases/capture.dart';
 import '../../../domain/usecases/usecases.dart';
 import '../inbox_args.dart';
 
-/// Capture cepat: hanya SATU kolom utama (isi). Judul, jenis, dan sisanya
-/// opsional dan bisa dilengkapi nanti (PRD: "capture first, organize later").
+/// Quick capture starts with the content; other details can be added later.
 class SavedItemFormPage extends StatefulWidget {
   const SavedItemFormPage({super.key});
 
@@ -75,7 +74,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
       if (!s.titleIsPlaceholder) _title.text = s.title;
       _url.text = s.url ?? '';
       _type = s.type;
-      // Dari Share Sheet: konteks asli belum diketahui, jadi tandai untuk diperiksa.
+      // Shared content may lack context, so flag it for review.
       _needsReview = _args.fromShare;
     }
   }
@@ -101,7 +100,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
     final title = _title.text.trim();
     if (content.isEmpty && title.isEmpty) {
       setState(
-        () => _contentError = 'Isi catatan atau judul tidak boleh kosong',
+        () => _contentError = 'Add note content or a title',
       );
       return;
     }
@@ -155,7 +154,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
         );
         if (dup != null) {
           Get.back<String>(result: dup.id);
-          AppToast.show('Sudah tersimpan: "${dup.title}"');
+          AppToast.show('Already saved: "${dup.title}"');
           await _maybeClose();
           return;
         }
@@ -168,7 +167,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
       Get.find<DataRevision>().bump();
       final msg = result.reminder?.message;
       Get.back<String>(result: item.id);
-      AppToast.show(msg ?? 'Tersimpan', isError: msg != null);
+      AppToast.show(msg ?? 'Saved to Notes', isError: msg != null);
       if (e == null) await _maybeClose();
     } catch (err, st) {
       AppLog.error('savedItem.save', err, st);
@@ -177,7 +176,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
     }
   }
 
-  /// Setelah menyimpan dari Share Sheet, kembali ke aplikasi sumber.
+  /// Return to the source app after saving shared content.
   Future<void> _maybeClose() async {
     if (!_args.fromShare) return;
     final v = await Get.find<SettingsRepository>().get(
@@ -204,14 +203,14 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
   Widget build(BuildContext context) {
     final isNew = _existing == null;
     return FormPage(
-      title: isNew ? 'Simpan informasi' : 'Ubah informasi',
+      title: isNew ? 'New note' : 'Edit note',
       onSave: _save,
       saving: _saving,
       children: [
         if (_args.fromShare)
           Text(
-            'Nama grup atau pengirim tidak selalu ikut terkirim dari aplikasi sumber; '
-            'tambahkan di Opsi lanjutan bila perlu.',
+            'The sender or group name may not come through from the source app. '
+            'Add it in More options if needed.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -224,7 +223,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
           keyboardType: TextInputType.multiline,
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
-            labelText: 'Isi / tautan',
+            labelText: 'Content / link',
             alignLabelWithHint: true,
             errorText: _contentError,
           ),
@@ -237,7 +236,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
           children: [
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Perlu diperiksa nanti'),
+              title: const Text('Needs review'),
               value: _needsReview,
               onChanged: (v) => setState(() => _needsReview = v),
             ),
@@ -245,12 +244,12 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
               controller: _title,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: 'Judul',
-                helperText: 'Kosong = dibuat otomatis dari isi',
+                labelText: 'Title',
+                helperText: 'Leave blank to create one from the content',
               ),
             ),
             EnumDropdown<SavedItemType>(
-              label: 'Jenis',
+              label: 'Type',
               value: _type,
               items: SavedItemType.values,
               labelOf: (t) => t.label,
@@ -263,45 +262,45 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
               controller: _url,
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
-                labelText: 'Tautan sumber',
+                labelText: 'Source link',
                 helperText:
-                    'Hanya menyimpan tautannya, bukan isi berkas di baliknya',
+                    'Only the link is saved, not the content behind it',
               ),
             ),
             TextField(
               controller: _sourceLabel,
               decoration: const InputDecoration(
-                labelText: 'Sumber',
-                helperText: 'mis. WhatsApp, SIAKAD, Dosen A',
+                labelText: 'Source',
+                helperText: 'e.g. WhatsApp, course portal, Professor Lee',
               ),
             ),
             TextField(
               controller: _course,
               decoration: const InputDecoration(
-                labelText: 'Mata kuliah / konteks',
+                labelText: 'Course / context',
               ),
             ),
             TextField(
               controller: _group,
-              decoration: const InputDecoration(labelText: 'Nama grup'),
+              decoration: const InputDecoration(labelText: 'Group name'),
             ),
             TextField(
               controller: _context,
               minLines: 2,
               maxLines: 4,
               decoration: const InputDecoration(
-                labelText: 'Catatan konteks',
+                labelText: 'Context notes',
                 alignLabelWithHint: true,
               ),
             ),
             ReminderField(
-              label: 'Ingatkan saya untuk memeriksa',
+              label: 'Remind me to review',
               value: _reminder,
               onChanged: (v) => setState(() => _reminder = v),
               anchor: DateTime.now(),
               presets: const [
-                ReminderPreset('Nanti (3 jam)', Duration(hours: -3)),
-                ReminderPreset('Besok', Duration(hours: -24)),
+                ReminderPreset('In 3 hours', Duration(hours: -3)),
+                ReminderPreset('Tomorrow', Duration(hours: -24)),
               ],
             ),
           ],

@@ -7,8 +7,7 @@ import '../../../core/widgets/common_widgets.dart';
 import '../../../domain/entities/entities.dart';
 import '../../../domain/entities/enums.dart';
 
-/// Baris tugas. Terlambat dibedakan oleh teks + ikon + garis kiri (bukan warna
-/// saja); selesai oleh coretan dan redup.
+/// Task row. Overdue and completed states use text and icon cues, not color alone.
 class TaskTile extends StatelessWidget {
   const TaskTile({
     super.key,
@@ -21,7 +20,7 @@ class TaskTile extends StatelessWidget {
   final Task task;
   final VoidCallback onTap;
 
-  /// Bila diisi, tampil kotak centang: satu ketukan = selesai / buka kembali.
+  /// When present, the checkbox toggles completion.
   final VoidCallback? onToggleDone;
   final bool dense;
 
@@ -40,7 +39,7 @@ class TaskTile extends StatelessWidget {
       if (due != null)
         '${DueLabel.of(due, now: now)} · ${Formatters.dateShort(due)}${DateTimeUtils.hasMeaningfulTime(due) ? ' ${Formatters.time(due)}' : ''}'
       else
-        'Tanpa deadline',
+        'No deadline',
       if (task.courseName != null) task.courseName!,
     ];
 
@@ -48,8 +47,8 @@ class TaskTile extends StatelessWidget {
       container: true,
       label: [
         task.title,
-        if (overdue) 'terlambat',
-        if (done) 'selesai',
+        if (overdue) 'overdue',
+        if (done) 'done',
         meta.first,
       ].join(', '),
       child: InkWell(
@@ -59,7 +58,7 @@ class TaskTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Garis kiri hanya untuk terlambat; ada juga tag "Terlambat" berteks.
+              // The overdue state also has a text label and icon.
               AnimatedContainer(
                 duration: AppMotion.of(context, AppMotion.standard),
                 width: 3,
@@ -73,7 +72,7 @@ class TaskTile extends StatelessWidget {
                       value: done,
                       shape: const CircleBorder(),
                       onChanged: (_) => onToggleDone!(),
-                      semanticLabel: done ? 'Buka kembali tugas' : 'Tandai selesai',
+                      semanticLabel: done ? 'Reopen task' : 'Mark task done',
                     ),
                   ),
                 )
@@ -115,12 +114,12 @@ class TaskTile extends StatelessWidget {
                             ),
                           ),
                           if (overdue)
-                            const StatusTag('Terlambat',
+                            const StatusTag('Overdue',
                                 icon: Icons.warning_amber, warning: true),
                           if (task.isRecurring && task.isActive)
-                            const StatusTag('Berulang', icon: Icons.repeat),
+                            const StatusTag('Repeats', icon: Icons.repeat),
                           if (task.status == TaskStatus.needsReview)
-                            const StatusTag('Perlu diperiksa',
+                            const StatusTag('Needs review',
                                 icon: Icons.help_outline),
                           if (task.priority.isHigh && task.isActive)
                             StatusTag(task.priority.label,

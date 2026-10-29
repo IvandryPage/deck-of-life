@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 /// Design tokens terpusat. Semua nilai visual berasal dari sini; halaman dan
 /// komponen tidak boleh memakai angka/warna "ajaib".
 ///
-/// Arah visual: fintech tenang + produktivitas. Satu warna merek (teal tua),
-/// warna lain hanya sebagai sistem informasi (masuk/keluar/peringatan/mendesak).
+/// Warm, student-friendly surfaces with Saweria-inspired orange and gold accents.
 
 // ---------------------------------------------------------------------------
 // Spacing (kelipatan 4)
@@ -30,7 +29,7 @@ abstract class AppSpace {
 abstract class AppRadius {
   static const double sm = 8; // chip, tag
   static const double md = 12; // input, tombol, baris
-  static const double lg = 16; // kartu, sheet
+  static const double lg = 20; // cards and sheets
   static const double xl = 28; // sheet atas
 
   static BorderRadius get card => BorderRadius.circular(lg);
@@ -89,8 +88,7 @@ abstract class AppMotion {
 }
 
 // ---------------------------------------------------------------------------
-// Tipografi: font sistem (tanpa dependensi/unduhan; offline-first).
-// Hierarki dibuat lewat ukuran + bobot + angka tabular untuk nominal.
+// Typography uses the bundled Nunito font and tabular figures for money.
 // ---------------------------------------------------------------------------
 abstract class AppText {
   static const List<FontFeature> tabular = [FontFeature.tabularFigures()];
@@ -116,10 +114,10 @@ abstract class AppText {
       bodyLarge: s(base.bodyLarge, 16, FontWeight.w400, height: 1.45),
       bodyMedium: s(base.bodyMedium, 14, FontWeight.w400, height: 1.45),
       // Minimum 12sp: tidak ada teks lebih kecil dari ini.
-      bodySmall: s(base.bodySmall, 12, FontWeight.w400, height: 1.4),
+      bodySmall: s(base.bodySmall, 13, FontWeight.w400, height: 1.4),
       labelLarge: s(base.labelLarge, 14, FontWeight.w600, height: 1.2),
-      labelMedium: s(base.labelMedium, 12, FontWeight.w600, height: 1.2),
-      labelSmall: s(base.labelSmall, 12, FontWeight.w600, height: 1.2),
+      labelMedium: s(base.labelMedium, 13, FontWeight.w600, height: 1.2),
+      labelSmall: s(base.labelSmall, 13, FontWeight.w600, height: 1.2),
     );
   }
 }

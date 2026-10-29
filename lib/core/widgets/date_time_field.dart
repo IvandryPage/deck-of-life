@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../utils/formatters.dart';
 
-/// Memilih tanggal lalu jam. Mengembalikan null bila pengguna membatalkan
-/// (nilai lama dipertahankan oleh pemanggil).
+/// Picks a date and time. Returns null when canceled so callers can retain
+/// their existing value.
 Future<DateTime?> pickDateTime(
   BuildContext context, {
   DateTime? initial,
@@ -30,7 +30,7 @@ Future<DateTime?> pickDateTime(
   return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
-/// Kolom tanggal/jam opsional dengan tombol hapus. Tidak pernah memaksa nilai.
+/// Optional date/time field with a clear button.
 class DateTimeField extends StatelessWidget {
   const DateTimeField({
     super.key,
@@ -40,7 +40,7 @@ class DateTimeField extends StatelessWidget {
     this.helper,
     this.dateOnly = false,
     this.defaultTime = const TimeOfDay(hour: 9, minute: 0),
-    this.emptyText = 'Belum diatur',
+    this.emptyText = 'Not set',
   });
 
   final String label;
@@ -75,7 +75,7 @@ class DateTimeField extends StatelessWidget {
           suffixIcon: value == null
               ? const Icon(Icons.calendar_today_outlined)
               : IconButton(
-                  tooltip: 'Hapus $label',
+                  tooltip: 'Clear $label',
                   icon: const Icon(Icons.clear),
                   onPressed: () => onChanged(null),
                 ),
@@ -92,7 +92,7 @@ class DateTimeField extends StatelessWidget {
   }
 }
 
-/// Memilih jam saja ("HH:mm").
+/// Picks a time and returns it in storage format ("HH:mm").
 Future<String?> pickHhmm(BuildContext context, {String? initial}) async {
   var start = const TimeOfDay(hour: 8, minute: 0);
   if (initial != null) {

@@ -28,9 +28,7 @@ class EnumDropdown<T> extends StatelessWidget {
       key: ValueKey<T>(value),
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-      ),
+      decoration: InputDecoration(labelText: label),
       items: [
         for (final i in items)
           DropdownMenuItem<T>(value: i, child: Text(labelOf(i))),
@@ -57,7 +55,7 @@ class ReminderField extends StatelessWidget {
     required this.onChanged,
     this.anchor,
     this.presets = const [],
-    this.label = 'Pengingat',
+    this.label = 'Reminder',
   });
 
   final DateTime? value;
@@ -75,7 +73,7 @@ class ReminderField extends StatelessWidget {
           label: label,
           value: value,
           onChanged: onChanged,
-          emptyText: 'Tanpa pengingat',
+          emptyText: 'No reminder',
         ),
         if (anchor != null && presets.isNotEmpty) ...[
           const SizedBox(height: AppSpace.sm),
@@ -96,14 +94,13 @@ class ReminderField extends StatelessWidget {
   }
 }
 
-/// Bagian "Opsi lanjutan": hanya tombol teks kecil sampai dibuka. Field yang
-/// jarang dipakai tidak mengganggu alur utama, tetapi tidak dihilangkan.
+/// Keeps infrequently used fields available without crowding the main form.
 class AdvancedOptions extends StatefulWidget {
   const AdvancedOptions({
     super.key,
     required this.children,
     this.initiallyOpen = false,
-    this.label = 'Opsi lanjutan',
+    this.label = 'More options',
   });
 
   final List<Widget> children;
@@ -143,7 +140,9 @@ class _AdvancedOptionsState extends State<AdvancedOptions> {
               child: const Icon(Icons.expand_more, size: AppSize.iconSm),
             ),
             iconAlignment: IconAlignment.end,
-            label: Text(_open ? 'Sembunyikan ${widget.label.toLowerCase()}' : widget.label),
+            label: Text(
+              _open ? 'Hide ${widget.label.toLowerCase()}' : widget.label,
+            ),
           ),
         ),
         AnimatedSize(
@@ -170,8 +169,7 @@ class _AdvancedOptionsState extends State<AdvancedOptions> {
   }
 }
 
-/// Halaman formulir seragam: judul, isi yang bisa digulir, dan tombol simpan
-/// yang selalu terlihat tepat di atas keyboard. Hanya satu aksi utama.
+/// Shared form layout with a persistent primary action above the keyboard.
 class FormPage extends StatelessWidget {
   const FormPage({
     super.key,
@@ -179,7 +177,7 @@ class FormPage extends StatelessWidget {
     required this.children,
     required this.onSave,
     this.saving = false,
-    this.saveLabel = 'Simpan',
+    this.saveLabel = 'Save',
     this.formKey,
     this.actions = const [],
   });
@@ -204,11 +202,16 @@ class FormPage extends StatelessWidget {
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(maxWidth: AppSize.maxContentWidth),
+                  constraints: const BoxConstraints(
+                    maxWidth: AppSize.maxContentWidth,
+                  ),
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(
-                        AppSpace.gutter, AppSpace.sm, AppSpace.gutter, AppSpace.xl),
+                      AppSpace.gutter,
+                      AppSpace.sm,
+                      AppSpace.gutter,
+                      AppSpace.xl,
+                    ),
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
                     children: [
@@ -226,10 +229,15 @@ class FormPage extends StatelessWidget {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpace.gutter, AppSpace.sm, AppSpace.gutter, AppSpace.md),
+                AppSpace.gutter,
+                AppSpace.sm,
+                AppSpace.gutter,
+                AppSpace.md,
+              ),
               child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(maxWidth: AppSize.maxContentWidth),
+                constraints: const BoxConstraints(
+                  maxWidth: AppSize.maxContentWidth,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton(
@@ -252,7 +260,7 @@ class FormPage extends StatelessWidget {
   }
 }
 
-/// Padding standar halaman formulir (aman dari keyboard).
+/// Standard form-page padding that remains clear of the keyboard.
 class FormScroll extends StatelessWidget {
   const FormScroll({super.key, required this.children, this.formKey});
 
