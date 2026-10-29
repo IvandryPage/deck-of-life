@@ -60,4 +60,4 @@ Verifikasi nyata yang sudah dilakukan: migrasi v1→v2 dengan data (Python sqlit
 
 ## 6. Sengaja ditunda
 
-Share file/gambar (`EXTRA_STREAM`), FTS5, enkripsi backup, alarm eksak, daftar langkah tugas (butuh perubahan skema), pengurangan saldo otomatis saat tagihan dibayar (akan merusak prinsip "saldo = fakta terkonfirmasi"), antrean review khusus (Kotak Masuk + filter "perlu diperiksa" sudah cukup), serta AI/OCR/cloud sync/jaringan apa pun.
+Share file/gambar (`EXTRA_STREAM`), FTS5, enkripsi backup, alarm eksak, daftar langkah tugas (butuh perubahan skema), antrean review khusus (Kotak Masuk + filter "perlu diperiksa" sudah cukup), serta AI/OCR/cloud sync/jaringan apa pun. Pembayaran tagihan kini dicatat sebagai expense tertaut setelah pengguna memilih wallet.

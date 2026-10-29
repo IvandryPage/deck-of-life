@@ -19,12 +19,12 @@ class FinanceController extends GetxController with DataMutations {
     required MarkBillPaid markBillPaid,
     required DeleteBill deleteBill,
     required DataRevision revision,
-  })  : _finance = finance,
-        _settings = settings,
-        _saveBill = saveBill,
-        _markBillPaid = markBillPaid,
-        _deleteBill = deleteBill,
-        _revision = revision;
+  }) : _finance = finance,
+       _settings = settings,
+       _saveBill = saveBill,
+       _markBillPaid = markBillPaid,
+       _deleteBill = deleteBill,
+       _revision = revision;
 
   final FinanceRepository _finance;
   final SettingsRepository _settings;
@@ -46,6 +46,7 @@ class FinanceController extends GetxController with DataMutations {
   final RxnInt workdays = RxnInt();
   final RxInt confirmedIncome = 0.obs;
   final RxBool isLoading = true.obs;
+  final RxnString lastUsedAccountId = RxnString();
 
   /// Riwayat transaksi: filter jenis + pencarian (dalam memori, maks 200 terbaru).
   final Rxn<TransactionDirection> txnFilter = Rxn<TransactionDirection>();
@@ -67,21 +68,31 @@ class FinanceController extends GetxController with DataMutations {
       final unpaid = await _finance.bills(statuses: {BillStatus.unpaid});
       final paid = await _finance.bills(statuses: {BillStatus.paid});
       paid.sort((a, b) => (b.paidAt ?? b.dueAt).compareTo(a.paidAt ?? a.dueAt));
-      final days =
-          int.tryParse(await _settings.get(SettingKeys.availableWorkdays) ?? '');
+      final days = int.tryParse(
+        await _settings.get(SettingKeys.availableWorkdays) ?? '',
+      );
       final income =
-          int.tryParse(await _settings.get(SettingKeys.confirmedIncome) ?? '') ?? 0;
+          int.tryParse(
+            await _settings.get(SettingKeys.confirmedIncome) ?? '',
+          ) ??
+          0;
 
       final s = FinanceCalculator.summarize(acc, unpaid);
       accounts.assignAll(acc);
       unpaidBills.assignAll(unpaid);
       paidBills.assignAll(paid.take(5));
-      transactions.assignAll(await _finance.recentTransactions(limit: 200));
+      final recent = await _finance.recentTransactions(limit: 200);
+      transactions.assignAll(recent);
+      lastUsedAccountId.value =
+          await _settings.get(SettingKeys.lastUsedFinanceAccountId) ??
+          (recent.isEmpty ? null : recent.first.accountId);
       workdays.value = days;
       confirmedIncome.value = income;
       summary.value = s;
-      horizonDays.value = int.tryParse(
-              await _settings.get(SettingKeys.financeHorizonDays) ?? '') ??
+      horizonDays.value =
+          int.tryParse(
+            await _settings.get(SettingKeys.financeHorizonDays) ?? '',
+          ) ??
           30;
       // Target memakai kewajiban dalam horizon saja (terlambat + jatuh tempo
       // dalam N hari); tagihan jauh tidak membesarkan target hari ini.
@@ -115,21 +126,24 @@ class FinanceController extends GetxController with DataMutations {
   Future<bool> addAccount(String name, AccountType type, int balance) {
     final now = DateTime.now();
     return mutate(
-      () => _finance.createAccount(Account(
-        id: _uuid.v4(),
-        name: name,
-        accountType: type,
-        confirmedBalance: balance,
-        balanceConfirmedAt: now,
-        createdAt: now,
-        updatedAt: now,
-      )),
+      () => _finance.createAccount(
+        Account(
+          id: _uuid.v4(),
+          name: name,
+          accountType: type,
+          confirmedBalance: balance,
+          balanceConfirmedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ),
       success: 'Akun ditambahkan',
     );
   }
 
   /// Koreksi saldo = saldo aktual yang pengguna lihat sekarang (TDD 6.5).
-  Future<bool> confirmBalance(Account a, int balance, {String? reason}) => mutate(
+  Future<bool> confirmBalance(Account a, int balance, {String? reason}) =>
+      mutate(
         () => _finance.confirmBalance(a.id, balance, reason: reason),
         success: 'Saldo ${a.name} diperbarui',
       );
@@ -138,9 +152,9 @@ class FinanceController extends GetxController with DataMutations {
       mutate(() => _finance.renameAccount(a.id, name));
 
   Future<bool> deactivateAccount(Account a) => mutate(
-        () => _finance.deactivateAccount(a.id),
-        success: '${a.name} disembunyikan',
-      );
+    () => _finance.deactivateAccount(a.id),
+    success: '${a.name} disembunyikan',
+  );
 
   Future<List<BalanceAdjustment>> adjustmentsOf(Account a) =>
       _finance.adjustments(a.id);
@@ -156,27 +170,79 @@ class FinanceController extends GetxController with DataMutations {
     DateTime? occurredAt,
   }) {
     final now = DateTime.now();
-    return mutate(
-      () => _finance.addTransaction(MoneyTransaction(
-        id: _uuid.v4(),
-        accountId: account.id,
-        amount: amount,
-        direction: direction,
-        category: category.isEmpty ? 'Lainnya' : category,
-        note: note,
-        occurredAt: occurredAt ?? now,
-        createdAt: now,
-      )),
-      success: 'Transaksi dicatat (saldo tidak berubah)',
-    );
+    return mutate(() async {
+      await _finance.addTransaction(
+        MoneyTransaction(
+          id: _uuid.v4(),
+          accountId: account.id,
+          amount: amount,
+          direction: direction,
+          category: category.isEmpty ? 'Lainnya' : category,
+          note: note,
+          occurredAt: occurredAt ?? now,
+          createdAt: now,
+          affectsBalance: true,
+        ),
+      );
+      await _rememberAccount(account.id);
+    }, success: 'Transaksi dicatat');
+  }
+
+  Future<void> _rememberAccount(String id) async {
+    lastUsedAccountId.value = id;
+    await _settings.set(SettingKeys.lastUsedFinanceAccountId, id);
   }
 
   Future<bool> deleteTransaction(MoneyTransaction t) =>
       mutate(() => _finance.deleteTransaction(t.id));
 
+  Future<bool> updateTransaction({
+    required MoneyTransaction existing,
+    required Account account,
+    required int amount,
+    required TransactionDirection direction,
+    required String category,
+    String? note,
+    required DateTime occurredAt,
+  }) => mutate(() async {
+    await _finance.updateTransaction(
+      MoneyTransaction(
+        id: existing.id,
+        accountId: account.id,
+        amount: amount,
+        direction: direction,
+        category: category.isEmpty ? 'Lainnya' : category,
+        note: note,
+        occurredAt: occurredAt,
+        createdAt: existing.createdAt,
+      ),
+    );
+    await _rememberAccount(account.id);
+  }, success: 'Transaksi diperbarui');
+
+  Future<bool> transfer({
+    required Account from,
+    required Account to,
+    required int amount,
+    String? note,
+  }) => mutate(() async {
+    await _finance.transfer(
+      fromAccountId: from.id,
+      toAccountId: to.id,
+      amount: amount,
+      occurredAt: DateTime.now(),
+      note: note,
+    );
+    await _rememberAccount(from.id);
+  }, success: 'Transfer dicatat');
+
   // ---- Tagihan --------------------------------------------------------------
 
-  Future<bool> saveBill(Bill bill, {required bool isNew, DateTime? reminderAt}) async {
+  Future<bool> saveBill(
+    Bill bill, {
+    required bool isNew,
+    DateTime? reminderAt,
+  }) async {
     String? message;
     final ok = await mutate(() async {
       final r = await _saveBill(bill, isNew: isNew, reminderAt: reminderAt);
@@ -186,31 +252,52 @@ class FinanceController extends GetxController with DataMutations {
     return ok;
   }
 
-  Future<bool> markPaid(Bill b) => mutate(
-        () => _markBillPaid(b.id),
-        success: '"${b.title}" ditandai dibayar. Perbarui saldo bila sudah berubah.',
-      );
+  Future<bool> markPaid(Bill b, Account account) async {
+    final ok = await mutate(() async {
+  await _markBillPaid(b.id, accountId: account.id);
+  await _rememberAccount(account.id);
+    });
+    if (ok) {
+  AppToast.show(
+    '"${b.title}" dibayar dan pengeluarannya dicatat',
+    actionLabel: 'Urungkan',
+    onAction: () => _undoMarkPaid(b),
+  );
+    }
+    return ok;
+  }
+
+  Future<void> _undoMarkPaid(Bill bill) async {
+    try {
+  await _markBillPaid.undo();
+  _revision.bump();
+  AppToast.show('Pembayaran "${bill.title}" diurungkan');
+    } catch (e, st) {
+  AppLog.error('finance.undo_bill_payment', e, st);
+  AppToast.show(messageOf(e), isError: true);
+    }
+  }
 
   Future<bool> deleteBill(Bill b) =>
       mutate(() => _deleteBill(b.id), success: 'Tagihan dihapus');
 
   Future<bool> setHorizon(int days) => mutate(
-        () => _settings.set(SettingKeys.financeHorizonDays, days.toString()),
-      );
+    () => _settings.set(SettingKeys.financeHorizonDays, days.toString()),
+  );
 
   // ---- Asumsi target pendapatan -------------------------------------------
 
   Future<bool> setWorkdays(int? days) => mutate(() async {
-        if (days == null) {
-          await _settings.remove(SettingKeys.availableWorkdays);
-        } else {
-          await _settings.set(SettingKeys.availableWorkdays, days.toString());
-        }
-      });
+    if (days == null) {
+      await _settings.remove(SettingKeys.availableWorkdays);
+    } else {
+      await _settings.set(SettingKeys.availableWorkdays, days.toString());
+    }
+  });
 
   Future<bool> setConfirmedIncome(int amount) => mutate(
-        () => _settings.set(SettingKeys.confirmedIncome, amount.toString()),
-      );
+    () => _settings.set(SettingKeys.confirmedIncome, amount.toString()),
+  );
 
   /// Transaksi setelah filter jenis dan pencarian (kategori, catatan, akun).
   List<MoneyTransaction> get filteredTransactions {
@@ -228,11 +315,13 @@ class FinanceController extends GetxController with DataMutations {
   /// Ringkasan bulan berjalan dari transaksi yang DICATAT (opsional), bukan
   /// seluruh arus kas; label di UI menyebutkan hal itu.
   ({int income, int expense, Map<String, int> byCategory}) monthSummary(
-      DateTime now) {
+    DateTime now,
+  ) {
     var inc = 0, exp = 0;
     final cats = <String, int>{};
     for (final t in transactions) {
-      if (t.occurredAt.year != now.year || t.occurredAt.month != now.month) continue;
+      if (t.occurredAt.year != now.year || t.occurredAt.month != now.month)
+        continue;
       if (t.direction == TransactionDirection.income) {
         inc += t.amount;
       } else {

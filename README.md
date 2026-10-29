@@ -55,8 +55,9 @@ test/           unit test logika + test repository/backup di SQLite nyata
 - **Pencarian:** `LIKE` berparameter (judul, isi, konteks, grup, sumber, URL, tugas) + filter.
 - **Tugas & agenda:** hanya judul/waktu mulai yang wajib; pengingat dengan preset.
 - **Pengingat:** disimpan di SQLite dulu, baru dijadwalkan ke OS; direkonsiliasi saat start & restore.
-- **Keuangan:** saldo terkonfirmasi + riwayat koreksi (atomik), tagihan, uang bebas (estimasi),
-  target pemasukan harian dengan asumsi yang ditampilkan; transaksi opsional tidak mengubah saldo.
+- **Keuangan:** saldo wallet dihitung dari saldo terakhir dikonfirmasi dan transaksi ledger sesudahnya;
+  income/expense, transfer berpasangan, pembayaran tagihan tertaut, edit/hapus, dan koreksi atomik.
+  Riwayat sebelum ledger tetap disimpan tanpa dihitung ulang.
 - **Rutinitas:** harian / mingguan / interval, log pelaksanaan, jadwal berikutnya.
 - **Backup:** ekspor JSON (+ checksum), restore tervalidasi, atomik (replace-all), dengan backup
   pengaman otomatis sebelum menimpa.

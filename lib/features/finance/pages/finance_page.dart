@@ -12,6 +12,7 @@ import '../../../domain/entities/logic.dart';
 import '../controllers/finance_controller.dart';
 import '../widgets/account_dialog.dart';
 import '../widgets/bill_sheet.dart';
+import '../widgets/transfer_sheet.dart';
 import '../widgets/transaction_sheet.dart';
 
 class FinancePage extends GetView<FinanceController> {
@@ -81,7 +82,8 @@ class _SummaryCard extends StatelessWidget {
     }
 
     final free = s.estimatedFreeMoney;
-    final stale = s.oldestConfirmedAt != null &&
+    final stale =
+        s.oldestConfirmedAt != null &&
         DateTime.now().difference(s.oldestConfirmedAt!).inDays >= 7;
 
     return SectionCard(
@@ -89,9 +91,12 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Saldo terkonfirmasi',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            'Saldo terkonfirmasi',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           AmountText(
             Formatters.rupiah(s.confirmedTotal),
             style: theme.textTheme.displaySmall,
@@ -100,27 +105,38 @@ class _SummaryCard extends StatelessWidget {
           if (s.lastConfirmedAt != null)
             Text(
               'Terakhir diperbarui ${Formatters.dateTime(s.lastConfirmedAt!)}',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           if (stale)
             const Padding(
               padding: EdgeInsets.only(top: 4),
-              child: StatusTag('Ada saldo yang lebih dari 7 hari belum diperbarui',
-                  icon: Icons.schedule, warning: true),
+              child: StatusTag(
+                'Ada saldo yang lebih dari 7 hari belum diperbarui',
+                icon: Icons.schedule,
+                warning: true,
+              ),
             ),
           const Divider(height: 20),
-          KeyValueRow('Tagihan belum dibayar', Formatters.rupiah(s.knownUnpaidBills)),
+          KeyValueRow(
+            'Tagihan belum dibayar',
+            Formatters.rupiah(s.knownUnpaidBills),
+          ),
           KeyValueRow(
             'Uang bebas (estimasi)',
-            free < 0 ? 'Kurang ${Formatters.rupiah(-free)}' : Formatters.rupiah(free),
+            free < 0
+                ? 'Kurang ${Formatters.rupiah(-free)}'
+                : Formatters.rupiah(free),
             emphasize: true,
           ),
-          if (controller.reality.value != null) ..._breakdown(controller.reality.value!),
+          if (controller.reality.value != null)
+            ..._breakdown(controller.reality.value!),
           Text(
             'Estimasi = saldo terkonfirmasi dikurangi tagihan belum dibayar. Ini bukan saldo bank aktual.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const Divider(height: 20),
           _targetSection(context, t, s),
@@ -130,23 +146,30 @@ class _SummaryCard extends StatelessWidget {
   }
 
   List<Widget> _breakdown(RealityCheck r) => [
-        if (r.overdueTotal > 0)
-          KeyValueRow('  Sudah lewat jatuh tempo', Formatters.rupiah(r.overdueTotal)),
-        KeyValueRow(
-          '  Jatuh tempo ${r.horizonDays} hari ke depan',
-          Formatters.rupiah(r.dueInHorizonTotal),
-        ),
-        if (r.laterTotal > 0)
-          KeyValueRow('  Lebih dari itu', Formatters.rupiah(r.laterTotal)),
-        if (r.fundingGap > 0)
-          KeyValueRow(
-            'Kesenjangan dana (${r.horizonDays} hari)',
-            Formatters.rupiah(r.fundingGap),
-            emphasize: true,
-          ),
-      ];
+    if (r.overdueTotal > 0)
+      KeyValueRow(
+        '  Sudah lewat jatuh tempo',
+        Formatters.rupiah(r.overdueTotal),
+      ),
+    KeyValueRow(
+      '  Jatuh tempo ${r.horizonDays} hari ke depan',
+      Formatters.rupiah(r.dueInHorizonTotal),
+    ),
+    if (r.laterTotal > 0)
+      KeyValueRow('  Lebih dari itu', Formatters.rupiah(r.laterTotal)),
+    if (r.fundingGap > 0)
+      KeyValueRow(
+        'Kesenjangan dana (${r.horizonDays} hari)',
+        Formatters.rupiah(r.fundingGap),
+        emphasize: true,
+      ),
+  ];
 
-  Widget _targetSection(BuildContext context, IncomeTarget t, FinanceSummary s) {
+  Widget _targetSection(
+    BuildContext context,
+    IncomeTarget t,
+    FinanceSummary s,
+  ) {
     final theme = Theme.of(context);
     final days = controller.workdays.value;
     final income = controller.confirmedIncome.value;
@@ -184,15 +207,18 @@ class _SummaryCard extends StatelessWidget {
           '${Formatters.rupiah(income)} = kekurangan ${Formatters.rupiah(t.fundingGap)}'
           '${days != null && days > 0 ? ', dibagi $days hari kerja' : ''}. '
           'Pemasukan yang belum pasti tidak dihitung.',
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         Wrap(
           spacing: 8,
           children: [
             TextButton(
               onPressed: () => _editWorkdays(context),
-              child: Text(days == null ? 'Atur hari kerja' : 'Hari kerja: $days'),
+              child: Text(
+                days == null ? 'Atur hari kerja' : 'Hari kerja: $days',
+              ),
             ),
             TextButton(
               onPressed: () => _editIncome(context),
@@ -284,17 +310,25 @@ class _AccountsCard extends StatelessWidget {
                 Row(
                   children: [
                     TextButton.icon(
-                      onPressed: () => showTransactionSheet(context, controller),
+                      onPressed: () =>
+                          showTransactionSheet(context, controller),
                       icon: const Icon(Icons.edit_note),
                       label: const Text('Catat transaksi'),
+                    ),
+                    TextButton.icon(
+                      onPressed: accounts.length < 2
+                          ? null
+                          : () => showTransferSheet(context, controller),
+                      icon: const Icon(Icons.swap_horiz),
+                      label: const Text('Transfer'),
                     ),
                   ],
                 ),
                 Text(
-                  'Ketuk akun untuk memperbarui saldo. Transaksi hanya catatan; tidak mengubah saldo terkonfirmasi.',
+                  'Saldo wallet mengikuti transaksi. Ketuk akun untuk koreksi saldo.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -308,15 +342,28 @@ class _AccountsCard extends StatelessWidget {
       message:
           'Masukkan saldo aktual yang Anda lihat sekarang. Saldo sebelumnya: ${Formatters.rupiah(a.confirmedBalance)}.',
       fields: [
-        FieldSpec(label: 'Saldo aktual (Rp)', numeric: true, initial: a.confirmedBalance.toString()),
-        const FieldSpec(label: 'Alasan', required: false, advanced: true, helper: 'mis. koreksi, setelah bayar kost'),
+        FieldSpec(
+          label: 'Saldo aktual (Rp)',
+          numeric: true,
+          initial: a.confirmedBalance.toString(),
+        ),
+        const FieldSpec(
+          label: 'Alasan',
+          required: false,
+          advanced: true,
+          helper: 'mis. koreksi, setelah bayar kost',
+        ),
       ],
       confirmLabel: 'Konfirmasi',
     );
     if (r == null) return;
     final value = Formatters.parseRupiah(r[0]);
     if (value == null) return;
-    await controller.confirmBalance(a, value, reason: r[1].isEmpty ? null : r[1]);
+    await controller.confirmBalance(
+      a,
+      value,
+      reason: r[1].isEmpty ? null : r[1],
+    );
   }
 
   Future<void> _accountMenu(BuildContext context, Account a) async {
@@ -389,7 +436,8 @@ class _AccountsCard extends StatelessWidget {
         final ok = await confirmDialog(
           context,
           title: 'Sembunyikan akun?',
-          message: 'Riwayatnya tetap tersimpan, tetapi saldo tidak lagi masuk ringkasan.',
+          message:
+              'Riwayatnya tetap tersimpan, tetapi saldo tidak lagi masuk ringkasan.',
           confirmLabel: 'Sembunyikan',
         );
         if (ok) await controller.deactivateAccount(a);
@@ -438,7 +486,11 @@ class _BillsCard extends StatelessWidget {
                     ),
                   ),
                   if (b.isOverdue(now))
-                    const StatusTag('Terlambat', icon: Icons.warning_amber, warning: true),
+                    const StatusTag(
+                      'Terlambat',
+                      icon: Icons.warning_amber,
+                      warning: true,
+                    ),
                 ],
               ),
               trailing: Text(
@@ -451,8 +503,9 @@ class _BillsCard extends StatelessWidget {
           if (unpaid.isNotEmpty)
             Text(
               'Ketuk untuk mengubah. Tahan untuk menandai dibayar atau menghapus.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           if (paid.isNotEmpty) ...[
             const Divider(height: 24),
@@ -485,7 +538,7 @@ class _BillsCard extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.check),
               title: const Text('Tandai dibayar'),
-              subtitle: const Text('Saldo akun tidak berubah otomatis'),
+              subtitle: const Text('Pilih wallet untuk mencatat pengeluaran'),
               onTap: () => Navigator.of(ctx).pop('paid'),
             ),
             ListTile(
@@ -499,7 +552,51 @@ class _BillsCard extends StatelessWidget {
     );
     if (choice == null || !context.mounted) return;
     if (choice == 'paid') {
-      await controller.markPaid(b);
+      if (controller.accounts.isEmpty) {
+        AppToast.show('Tambahkan wallet sebelum membayar tagihan.');
+        return;
+      }
+      final preferredId = controller.lastUsedAccountId.value;
+      final initialAccount = controller.accounts.firstWhere(
+        (item) => item.id == preferredId,
+        orElse: () => controller.accounts.first,
+      );
+      var selectedAccount = initialAccount;
+      final accountId = await showDialog<String>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Pilih wallet'),
+            content: DropdownButtonFormField<Account>(
+              initialValue: selectedAccount,
+              items: [
+                for (final account in controller.accounts)
+                  DropdownMenuItem(value: account, child: Text(account.name)),
+              ],
+              onChanged: (account) {
+                if (account != null) {
+                  setDialogState(() => selectedAccount = account);
+                }
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, selectedAccount.id),
+                child: const Text('Tandai dibayar'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (accountId == null || !context.mounted) return;
+      final account = controller.accounts.firstWhere(
+        (item) => item.id == accountId,
+      );
+      await controller.markPaid(b, account);
     } else {
       final ok = await confirmDialog(
         context,
@@ -562,8 +659,9 @@ class _TransactionsCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpace.xs),
             child: Text(
               'Dihitung dari transaksi yang Anda catat saja.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           if (month.byCategory.isNotEmpty) ...[
@@ -613,24 +711,36 @@ class _TransactionsCard extends StatelessWidget {
                     _TransactionRow(
                       t: t,
                       accountName: controller.accountName(t.accountId),
-                      onDelete: () async {
-                        final ok = await confirmDialog(
-                          context,
-                          title: 'Hapus catatan?',
-                          message:
-                              'Hanya catatan ini yang dihapus; saldo tidak berubah.',
-                          confirmLabel: 'Hapus',
-                          destructive: true,
-                        );
-                        if (ok) await controller.deleteTransaction(t);
-                      },
+                      onTap: t.billId == null && t.transferId == null
+                          ? () => showTransactionSheet(
+                              context,
+                              controller,
+                              existing: t,
+                            )
+                          : null,
+                      onDelete: t.billId == null
+                          ? () async {
+                              final ok = await confirmDialog(
+                                context,
+                                title: 'Hapus transaksi?',
+                                message: t.transferId == null
+                                    ? 'Saldo wallet akan diperbarui.'
+                                    : 'Kedua catatan transfer akan dihapus dan saldo wallet diperbarui.',
+                                confirmLabel: 'Hapus',
+                                destructive: true,
+                              );
+                              if (ok) await controller.deleteTransaction(t);
+                            }
+                          : null,
                     ),
                   if (all.length > _collapsed)
                     TextButton(
                       onPressed: () => controller.txnExpanded.value = !expanded,
-                      child: Text(expanded
-                          ? 'Tampilkan lebih sedikit'
-                          : 'Lihat semua (${all.length})'),
+                      child: Text(
+                        expanded
+                            ? 'Tampilkan lebih sedikit'
+                            : 'Lihat semua (${all.length})',
+                      ),
                     ),
                 ],
               ),
@@ -656,21 +766,29 @@ class _MiniTotal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
         children: [
-          Row(children: [
-            Icon(icon, size: AppSize.iconXs, color: color),
-            const SizedBox(width: AppSpace.xs),
-            Flexible(
-              child: Text(label,
-                  style: context.text.bodySmall
-                      ?.copyWith(color: context.scheme.onSurfaceVariant)),
+          Icon(icon, size: AppSize.iconXs, color: color),
+          const SizedBox(width: AppSpace.xs),
+          Flexible(
+            child: Text(
+              label,
+              style: context.text.bodySmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+              ),
             ),
-          ]),
-          AmountText(value,
-              style: context.text.titleMedium, align: TextAlign.start),
+          ),
         ],
-      );
+      ),
+      AmountText(
+        value,
+        style: context.text.titleMedium,
+        align: TextAlign.start,
+      ),
+    ],
+  );
 }
 
 /// Distribusi pengeluaran per kategori (maks 4 + "Lainnya"), berlabel dan persen.
@@ -697,15 +815,18 @@ class _CategoryBars extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 3),
             child: Semantics(
-              label: '$name ${(value * 100 / total).round()} persen, ${Formatters.rupiah(value)}',
+              label:
+                  '$name ${(value * 100 / total).round()} persen, ${Formatters.rupiah(value)}',
               child: Row(
                 children: [
                   SizedBox(
                     width: 84,
-                    child: Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.text.bodySmall),
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.bodySmall,
+                    ),
                   ),
                   Expanded(
                     child: ClipRRect(
@@ -728,8 +849,9 @@ class _CategoryBars extends StatelessWidget {
                     child: Text(
                       '${(value * 100 / total).round()}%',
                       textAlign: TextAlign.end,
-                      style: context.text.bodySmall
-                          ?.copyWith(fontFeatures: AppText.tabular),
+                      style: context.text.bodySmall?.copyWith(
+                        fontFeatures: AppText.tabular,
+                      ),
                     ),
                   ),
                 ],
@@ -746,11 +868,13 @@ class _TransactionRow extends StatelessWidget {
     required this.t,
     required this.accountName,
     required this.onDelete,
+    this.onTap,
   });
 
   final MoneyTransaction t;
   final String accountName;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -761,6 +885,7 @@ class _TransactionRow extends StatelessWidget {
       label:
           '${income ? "Pemasukan" : "Pengeluaran"} ${Formatters.rupiah(t.amount)}, ${t.category}',
       child: InkWell(
+        onTap: onTap,
         onLongPress: onDelete,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AppSize.tap + 8),
@@ -773,25 +898,31 @@ class _TransactionRow extends StatelessWidget {
                   color: income ? sem.incomeContainer : sem.expenseContainer,
                   borderRadius: AppRadius.control,
                 ),
-                child: Icon(income ? Icons.south_west : Icons.north_east,
-                    size: AppSize.iconSm, color: color),
+                child: Icon(
+                  income ? Icons.south_west : Icons.north_east,
+                  size: AppSize.iconSm,
+                  color: color,
+                ),
               ),
               const SizedBox(width: AppSpace.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(t.category,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.text.bodyLarge),
+                    Text(
+                      t.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.bodyLarge,
+                    ),
                     Text(
                       '$accountName · ${Formatters.dateShort(t.occurredAt)}'
                       '${t.note == null ? '' : ' · ${t.note}'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: context.text.bodySmall
-                          ?.copyWith(color: context.scheme.onSurfaceVariant),
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),

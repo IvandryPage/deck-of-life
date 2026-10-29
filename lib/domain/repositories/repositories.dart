@@ -24,6 +24,7 @@ abstract interface class SavedItemRepository {
   });
 
   Future<void> update(SavedItem item);
+
   /// Selain `needs_review`, pengingat "periksa" milik item ikut dihapus.
   Future<NotificationIds> setReviewStatus(String id, ReviewStatus status);
 
@@ -56,11 +57,7 @@ abstract interface class TaskRepository {
   /// itu sudah ada (idempoten).
   Future<Task?> createNextOccurrence(Task completed, DateTime nextDue);
 
-  Future<void> linkSavedItem(
-    String taskId,
-    String savedItemId, {
-    String? note,
-  });
+  Future<void> linkSavedItem(String taskId, String savedItemId, {String? note});
   Future<void> unlinkSavedItem(String taskId, String savedItemId);
   Future<List<SavedItem>> savedItemsFor(String taskId);
   Future<List<Task>> tasksForSavedItem(String savedItemId);
@@ -121,15 +118,28 @@ abstract interface class FinanceRepository {
     int limit = 20,
   });
 
-  /// Hanya histori opsional; TIDAK mengubah saldo terkonfirmasi.
+  /// Adds a new ledger entry that changes the wallet's computed balance.
   Future<MoneyTransaction> addTransaction(MoneyTransaction transaction);
+  Future<void> updateTransaction(MoneyTransaction transaction);
   Future<void> deleteTransaction(String id);
+  Future<List<MoneyTransaction>> transfer({
+    required String fromAccountId,
+    required String toAccountId,
+    required int amount,
+    required DateTime occurredAt,
+    String? note,
+  });
   Future<List<MoneyTransaction>> recentTransactions({int limit = 30});
 
   Future<Bill> createBill(Bill bill);
   Future<Bill?> getBill(String id);
   Future<NotificationIds> updateBill(Bill bill);
-  Future<NotificationIds> markBillPaid(String id, DateTime paidAt);
+  Future<NotificationIds> markBillPaid(
+    String id,
+    String accountId,
+    DateTime paidAt,
+  );
+  Future<NotificationIds> undoBillPayment(String id, {String? nextBillId});
   Future<NotificationIds> deleteBill(String id);
   Future<List<Bill>> bills({Set<BillStatus>? statuses});
   Future<List<Bill>> searchBills(String query, {int limit = 50});
@@ -166,6 +176,7 @@ class SettingKeys {
   static const postWorkReviewEnabled = 'post_work_review_enabled';
   static const postWorkReviewTime = 'post_work_review_time'; // "HH:mm"
   static const financeHorizonDays = 'finance_horizon_days';
+  static const lastUsedFinanceAccountId = 'last_used_finance_account_id';
   static const lastBackupAt = 'last_backup_at';
   static const firstUseAt = 'first_use_at';
   static const closeAfterShare = 'close_after_share'; // '1' (default) / '0'

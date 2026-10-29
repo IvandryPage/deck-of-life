@@ -27,9 +27,9 @@ class BackupSchema {
     'events',
     'reminders',
     'accounts',
+    'bills',
     'transactions',
     'balance_adjustments',
-    'bills',
     'routines',
     'routine_logs',
     'app_settings',
@@ -184,6 +184,18 @@ class BackupSchema {
     },
   };
 
+  /// Skema v3 menghubungkan transfer/tagihan ke ledger dan menandai transaksi
+  /// baru yang berpengaruh pada saldo.
+  static final Map<String, Map<String, _Col>> v3 = {
+    ...v2,
+    'transactions': {
+      ...v2['transactions']!,
+      'transfer_id': const _Col.text(nullable: true),
+      'bill_id': const _Col.text(nullable: true),
+      'affects_balance': const _Col.integer(),
+    },
+  };
+
   /// SHA-256 dari `data` yang di-encode kompak. Dipakai saat ekspor dan impor.
   static String checksumOf(Object? data) =>
       sha256.convert(utf8.encode(jsonEncode(data))).toString();
@@ -211,7 +223,10 @@ class ParsedBackup {
 class BackupValidator {
   const BackupValidator._();
 
-  static ParsedBackup parse(String jsonText, {required int currentSchemaVersion}) {
+  static ParsedBackup parse(
+    String jsonText, {
+    required int currentSchemaVersion,
+  }) {
     final Object? decoded;
     try {
       decoded = jsonDecode(jsonText);
@@ -219,7 +234,9 @@ class BackupValidator {
       throw BackupFormatException('Berkas ini bukan JSON yang valid.', e);
     }
     if (decoded is! Map<String, dynamic>) {
-      throw const BackupFormatException('Struktur berkas backup tidak dikenali.');
+      throw const BackupFormatException(
+        'Struktur berkas backup tidak dikenali.',
+      );
     }
     if (decoded['format'] != BackupSchema.formatId) {
       throw const BackupFormatException(
@@ -268,13 +285,19 @@ class BackupValidator {
     _checkUniqueIds(data);
     _checkReferences(data);
 
-    // Backup v1 dibuat sebelum kolom `recurrence_rule` ada. Isi NULL (= tidak
-    // berulang) agar baris cocok dengan skema database saat ini.
+    // Older backups are upgraded in memory and leave their transactions inert.
     if (version < 2) {
       for (final table in const ['tasks', 'bills']) {
         for (final row in data[table]!) {
           row['recurrence_rule'] = null;
         }
+      }
+    }
+    if (version < 3) {
+      for (final row in data['transactions']!) {
+        row['transfer_id'] = null;
+        row['bill_id'] = null;
+        row['affects_balance'] = 0;
       }
     }
 
@@ -289,6 +312,7 @@ class BackupValidator {
   static Map<String, Map<String, _Col>> _specFor(int version) {
     if (version == 1) return BackupSchema.v1;
     if (version == 2) return BackupSchema.v2;
+    if (version == 3) return BackupSchema.v3;
     throw BackupFormatException('Versi skema backup $version tidak didukung.');
   }
 
@@ -310,6 +334,11 @@ class BackupValidator {
       }
     }
     for (final entry in columns.entries) {
+      if (!raw.containsKey(entry.key)) {
+        throw ImportValidationException(
+          'Kolom "${entry.key}" tidak ditemukan (baris ${index + 1} di "$table").',
+        );
+      }
       final value = raw[entry.key];
       final col = entry.value;
       if (value == null) {
@@ -334,7 +363,8 @@ class BackupValidator {
 
   static void _checkUniqueIds(Map<String, List<Map<String, Object?>>> data) {
     for (final table in BackupSchema.tables) {
-      if (table == 'task_saved_items') continue; // kunci gabungan, dicek di bawah
+      if (table == 'task_saved_items')
+        continue; // kunci gabungan, dicek di bawah
       final keyCol = table == 'app_settings' ? 'key' : 'id';
       final seen = <Object?>{};
       for (final row in data[table]!) {
@@ -362,17 +392,21 @@ class BackupValidator {
   static Set<Object?> _ids(
     Map<String, List<Map<String, Object?>>> data,
     String table,
-  ) =>
-      data[table]!.map((r) => r['id']).toSet();
+  ) => data[table]!.map((r) => r['id']).toSet();
 
   static void _checkReferences(Map<String, List<Map<String, Object?>>> data) {
     final tasks = _ids(data, 'tasks');
     final items = _ids(data, 'saved_items');
     final accounts = _ids(data, 'accounts');
     final routines = _ids(data, 'routines');
+    final bills = _ids(data, 'bills');
 
-    void need(Set<Object?> parents, Object? value, String what,
-        {bool nullable = false}) {
+    void need(
+      Set<Object?> parents,
+      Object? value,
+      String what, {
+      bool nullable = false,
+    }) {
       if (value == null && nullable) return;
       if (!parents.contains(value)) {
         throw ImportValidationException('Relasi rusak: $what tidak ditemukan.');
@@ -385,10 +419,16 @@ class BackupValidator {
     }
     for (final r in data['events']!) {
       need(tasks, r['linked_task_id'], 'tugas pada agenda', nullable: true);
-      need(items, r['linked_saved_item_id'], 'item pada agenda', nullable: true);
+      need(
+        items,
+        r['linked_saved_item_id'],
+        'item pada agenda',
+        nullable: true,
+      );
     }
     for (final r in data['transactions']!) {
       need(accounts, r['account_id'], 'akun pada transaksi');
+      need(bills, r['bill_id'], 'tagihan pada transaksi', nullable: true);
     }
     for (final r in data['balance_adjustments']!) {
       need(accounts, r['account_id'], 'akun pada penyesuaian saldo');

@@ -473,7 +473,8 @@ lokal.
 -   Gunakan transaksi database untuk operasi multi-tabel.
 -   Gunakan migrasi versi skema.
 -   Hindari duplikasi data sumber di banyak tempat; gunakan relasi.
--   Simpan saldo terkonfirmasi dan transaksi sebagai konsep berbeda.
+-   Hitung saldo wallet dari saldo terakhir yang dikonfirmasi dan transaksi ledger setelah waktu konfirmasi; pertahankan transaksi lama tanpa menghitungnya ulang.
+-   Simpan transfer sebagai dua entri bertaut dan pembayaran bill sebagai expense tertaut agar saldo konsisten.
 -   Tetapkan aturan yang jelas untuk menghindari tagihan dihitung dua
     kali.
 -   Jangan menyimpan kredensial sensitif karena integrasi akun eksternal

@@ -5,8 +5,8 @@ import 'package:deck_of_life/core/backup/backup_validator.dart';
 import 'package:deck_of_life/core/errors/app_exception.dart';
 
 Map<String, Object?> _emptyData() => {
-      for (final t in BackupSchema.tables) t: <Object?>[],
-    };
+  for (final t in BackupSchema.tables) t: <Object?>[],
+};
 
 String _backup({
   Map<String, Object?>? data,
@@ -27,32 +27,63 @@ String _backup({
 }
 
 Map<String, Object?> _item(String id) => {
-      'id': id,
-      'title': 't',
-      'content_text': '',
-      'item_type': 'note',
-      'source_app': null,
-      'source_label': null,
-      'source_url': null,
-      'source_location': null,
-      'course_name': null,
-      'group_name': null,
-      'context_note': null,
-      'review_status': 'needs_review',
-      'is_favorite': 0,
-      'created_at': '2026-10-26T10:00:00+07:00',
-      'updated_at': '2026-10-26T10:00:00+07:00',
-      'archived_at': null,
-    };
+  'id': id,
+  'title': 't',
+  'content_text': '',
+  'item_type': 'note',
+  'source_app': null,
+  'source_label': null,
+  'source_url': null,
+  'source_location': null,
+  'course_name': null,
+  'group_name': null,
+  'context_note': null,
+  'review_status': 'needs_review',
+  'is_favorite': 0,
+  'created_at': '2026-10-26T10:00:00+07:00',
+  'updated_at': '2026-10-26T10:00:00+07:00',
+  'archived_at': null,
+};
 
 ParsedBackup _parse(String text) =>
-    BackupValidator.parse(text, currentSchemaVersion: 2);
+    BackupValidator.parse(text, currentSchemaVersion: 3);
 
 void main() {
   test('backup kosong yang valid diterima', () {
-    final p = _parse(_backup());
-    expect(p.schemaVersion, 2);
+    final p = _parse(_backup(schema: 3));
+    expect(p.schemaVersion, 3);
     expect(p.totalRows, 0);
+  });
+
+  test('backup v2 tetap diterima dan transaksi lama tetap non-ledger', () {
+    final data = _emptyData();
+    data['accounts'] = [
+      {
+        'id': 'wallet',
+        'name': 'Cash',
+        'account_type': 'cash',
+        'confirmed_balance': 100000,
+        'balance_confirmed_at': '2026-10-01T08:00:00+07:00',
+        'is_active': 1,
+        'created_at': '2026-10-01T08:00:00+07:00',
+        'updated_at': '2026-10-01T08:00:00+07:00',
+      },
+    ];
+    data['transactions'] = [
+      {
+        'id': 'old',
+        'account_id': 'wallet',
+        'amount': 10000,
+        'direction': 'expense',
+        'category': 'Food',
+        'note': null,
+        'occurred_at': '2026-10-02T08:00:00+07:00',
+        'created_at': '2026-10-02T08:00:00+07:00',
+      },
+    ];
+    final p = _parse(_backup(schema: 2, data: data));
+    expect(p.data['transactions']!.single['affects_balance'], 0);
+    expect(p.data['transactions']!.single['bill_id'], isNull);
   });
 
   test('backup tanpa checksum tetap diterima (checksum opsional)', () {
@@ -72,10 +103,13 @@ void main() {
 
   test('skema lebih baru dari aplikasi ditolak dengan pesan yang jelas', () {
     expect(
-      () => _parse(_backup(schema: 3)),
+      () => _parse(_backup(schema: 4)),
       throwsA(
-        isA<BackupFormatException>()
-            .having((e) => e.message, 'message', contains('lebih baru')),
+        isA<BackupFormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('lebih baru'),
+        ),
       ),
     );
   });
@@ -137,17 +171,20 @@ void main() {
     );
   });
 
-  test('relasi rusak ditolak (task_saved_items menunjuk item yang tidak ada)', () {
-    final d = _emptyData();
-    d['saved_items'] = [_item('a')];
-    d['task_saved_items'] = [
-      {'task_id': 'tidak-ada', 'saved_item_id': 'a', 'relation_note': null},
-    ];
-    expect(
-      () => _parse(_backup(data: d)),
-      throwsA(isA<ImportValidationException>()),
-    );
-  });
+  test(
+    'relasi rusak ditolak (task_saved_items menunjuk item yang tidak ada)',
+    () {
+      final d = _emptyData();
+      d['saved_items'] = [_item('a')];
+      d['task_saved_items'] = [
+        {'task_id': 'tidak-ada', 'saved_item_id': 'a', 'relation_note': null},
+      ];
+      expect(
+        () => _parse(_backup(data: d)),
+        throwsA(isA<ImportValidationException>()),
+      );
+    },
+  );
 
   test('relasi valid diterima dan dihitung', () {
     final d = _emptyData();
@@ -158,26 +195,26 @@ void main() {
   });
 
   Map<String, Object?> task({bool withRule = true}) => {
-        'id': 't1',
-        'title': 'Tugas',
-        'description': '',
-        'status': 'todo',
-        'priority': 'normal',
-        'due_at': null,
-        'estimated_minutes': null,
-        'course_name': null,
-        'group_name': null,
-        'task_kind': 'individual',
-        'instruction_source': null,
-        'instruction_location': null,
-        'initiated_by': null,
-        'next_action': null,
-        'created_at': '2026-10-26T10:00:00+07:00',
-        'updated_at': '2026-10-26T10:00:00+07:00',
-        'completed_at': null,
-        'archived_at': null,
-        if (withRule) 'recurrence_rule': 'weekly',
-      };
+    'id': 't1',
+    'title': 'Tugas',
+    'description': '',
+    'status': 'todo',
+    'priority': 'normal',
+    'due_at': null,
+    'estimated_minutes': null,
+    'course_name': null,
+    'group_name': null,
+    'task_kind': 'individual',
+    'instruction_source': null,
+    'instruction_location': null,
+    'initiated_by': null,
+    'next_action': null,
+    'created_at': '2026-10-26T10:00:00+07:00',
+    'updated_at': '2026-10-26T10:00:00+07:00',
+    'completed_at': null,
+    'archived_at': null,
+    if (withRule) 'recurrence_rule': 'weekly',
+  };
 
   test('backup skema 1 (tanpa recurrence_rule) tetap bisa dipulihkan', () {
     final d = _emptyData();

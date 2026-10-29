@@ -29,6 +29,9 @@ class ShellPage extends GetView<ShellController> {
     'Informasi',
   ];
 
+  static String _tabTitle(int index) =>
+      (index >= 0 && index < _titles.length) ? _titles[index] : _titles[0];
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -37,7 +40,7 @@ class ShellPage extends GetView<ShellController> {
         appBar: i == ShellController.tabHome
             ? null // Beranda punya header sendiri yang kontekstual.
             : AppBar(
-                title: Text(_titles[i]),
+                title: Text(_tabTitle(i)),
                 actions: _actions(),
               ),
         body: SafeArea(

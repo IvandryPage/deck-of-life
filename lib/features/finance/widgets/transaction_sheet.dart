@@ -11,7 +11,12 @@ import '../controllers/finance_controller.dart';
 import 'account_dialog.dart';
 
 const List<String> _expenseCategories = [
-  'Makan', 'Transport', 'Belanja', 'Tagihan', 'Pendidikan', 'Lainnya',
+  'Makan',
+  'Transport',
+  'Belanja',
+  'Tagihan',
+  'Pendidikan',
+  'Lainnya',
 ];
 const List<String> _incomeCategories = ['Gaji', 'Usaha', 'Kiriman', 'Lainnya'];
 
@@ -19,22 +24,24 @@ const List<String> _incomeCategories = ['Gaji', 'Usaha', 'Kiriman', 'Lainnya'];
 /// tanggal default hari ini, catatan opsional. Hanya nominal yang wajib.
 Future<void> showTransactionSheet(
   BuildContext context,
-  FinanceController controller,
-) {
+  FinanceController controller, {
+  MoneyTransaction? existing,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-      child: _TransactionForm(controller: controller),
+      child: _TransactionForm(controller: controller, existing: existing),
     ),
   );
 }
 
 class _TransactionForm extends StatefulWidget {
-  const _TransactionForm({required this.controller});
+  const _TransactionForm({required this.controller, this.existing});
   final FinanceController controller;
+  final MoneyTransaction? existing;
 
   @override
   State<_TransactionForm> createState() => _TransactionFormState();
@@ -54,8 +61,22 @@ class _TransactionFormState extends State<_TransactionForm> {
   @override
   void initState() {
     super.initState();
+    final existing = widget.existing;
+    if (existing != null) {
+      _amount.text = existing.amount.toString();
+      _note.text = existing.note ?? '';
+      _direction = existing.direction;
+      _category = existing.category;
+      _date = existing.occurredAt;
+    }
     final accounts = widget.controller.accounts;
-    if (accounts.isNotEmpty) _account = accounts.first;
+    if (accounts.isNotEmpty) {
+      final preferredId = widget.controller.lastUsedAccountId.value;
+      _account = accounts.firstWhere(
+        (account) => account.id == (existing?.accountId ?? preferredId),
+        orElse: () => accounts.first,
+      );
+    }
   }
 
   @override
@@ -89,14 +110,28 @@ class _TransactionFormState extends State<_TransactionForm> {
       _amountError = null;
     });
     final today = DateTimeUtils.isSameDay(_date, DateTime.now());
-    final ok = await widget.controller.addTransaction(
-      account: account,
-      amount: amount,
-      direction: _direction,
-      category: _category ?? '',
-      note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-      occurredAt: today ? DateTime.now() : DateTime(_date.year, _date.month, _date.day, 12),
-    );
+    final occurredAt = today
+        ? DateTime.now()
+        : DateTime(_date.year, _date.month, _date.day, 12);
+    final existing = widget.existing;
+    final ok = existing == null
+        ? await widget.controller.addTransaction(
+            account: account,
+            amount: amount,
+            direction: _direction,
+            category: _category ?? '',
+            note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+            occurredAt: occurredAt,
+          )
+        : await widget.controller.updateTransaction(
+            existing: existing,
+            account: account,
+            amount: amount,
+            direction: _direction,
+            category: _category ?? '',
+            note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+            occurredAt: occurredAt,
+          );
     if (!mounted) return;
     if (ok) {
       Navigator.of(context).pop();
@@ -116,7 +151,8 @@ class _TransactionFormState extends State<_TransactionForm> {
           compact: true,
           icon: Icons.account_balance_wallet_outlined,
           title: 'Tambahkan akun dulu',
-          message: 'Transaksi dicatat pada sebuah akun (rekening atau uang tunai).',
+          message:
+              'Transaksi dicatat pada sebuah akun (rekening atau uang tunai).',
           actionLabel: 'Tambah akun',
           onAction: () {
             Navigator.of(context).pop();
@@ -134,7 +170,11 @@ class _TransactionFormState extends State<_TransactionForm> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
-          AppSpace.xl, 0, AppSpace.xl, AppSpace.xl),
+        AppSpace.xl,
+        0,
+        AppSpace.xl,
+        AppSpace.xl,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -146,9 +186,11 @@ class _TransactionFormState extends State<_TransactionForm> {
                 ButtonSegment(
                   value: d,
                   label: Text(d.label),
-                  icon: Icon(d == TransactionDirection.income
-                      ? Icons.south_west
-                      : Icons.north_east),
+                  icon: Icon(
+                    d == TransactionDirection.income
+                        ? Icons.south_west
+                        : Icons.north_east,
+                  ),
                 ),
             ],
             selected: {_direction},
@@ -168,8 +210,10 @@ class _TransactionFormState extends State<_TransactionForm> {
             onChanged: (_) {
               if (_amountError != null) setState(() => _amountError = null);
             },
-            style: context.text.displaySmall
-                ?.copyWith(color: accent, fontFeatures: AppText.tabular),
+            style: context.text.displaySmall?.copyWith(
+              color: accent,
+              fontFeatures: AppText.tabular,
+            ),
             decoration: InputDecoration(
               labelText: 'Nominal',
               prefixText: 'Rp ',
@@ -211,7 +255,10 @@ class _TransactionFormState extends State<_TransactionForm> {
                         for (final a in accounts)
                           DropdownMenuItem(
                             value: a,
-                            child: Text(a.name, overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              a.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                       ],
                       onChanged: (a) => setState(() => _account = a),
@@ -240,9 +287,10 @@ class _TransactionFormState extends State<_TransactionForm> {
             ),
           const SizedBox(height: AppSpace.sm),
           Text(
-            'Hanya catatan: saldo terkonfirmasi tidak berubah. Perbarui saldo di Keuangan.',
-            style: context.text.bodySmall
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
+            'Saldo wallet diperbarui otomatis. Gunakan koreksi saldo bila perlu.',
+            style: context.text.bodySmall?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSpace.lg),
           FilledButton(
@@ -253,7 +301,7 @@ class _TransactionFormState extends State<_TransactionForm> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Simpan'),
+                : Text(widget.existing == null ? 'Simpan' : 'Simpan perubahan'),
           ),
         ],
       ),

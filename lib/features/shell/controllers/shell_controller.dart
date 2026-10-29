@@ -23,6 +23,7 @@ class ShellController extends GetxController {
 
   /// Pindah tab; bila sedang di halaman dalam (detail/form), kembali ke shell dulu.
   void goTo(int index) {
+    if (index < tabHome || index > tabInfo) return;
     Get.until((r) => r.settings.name == Routes.shell || r.isFirst);
     tab.value = index;
   }

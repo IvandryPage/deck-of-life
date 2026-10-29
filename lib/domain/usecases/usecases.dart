@@ -42,16 +42,15 @@ class SearchSavedItems {
     bool includeArchived = false,
     int limit = 50,
     int offset = 0,
-  }) =>
-      _repo.search(
-        query,
-        type: type,
-        courseName: courseName,
-        reviewStatus: reviewStatus,
-        includeArchived: includeArchived,
-        limit: limit,
-        offset: offset,
-      );
+  }) => _repo.search(
+    query,
+    type: type,
+    courseName: courseName,
+    reviewStatus: reviewStatus,
+    includeArchived: includeArchived,
+    limit: limit,
+    offset: offset,
+  );
 }
 
 class SaveSavedItem {
@@ -210,12 +209,14 @@ class RescheduleTask {
       throw const ValidationException('Tugas tidak ditemukan.');
     }
     final n = now ?? DateTime.now();
-    final oldReminder =
-        await _reminders.getForTarget(ReminderTargetType.task, taskId);
+    final oldReminder = await _reminders.getForTarget(
+      ReminderTargetType.task,
+      taskId,
+    );
     final newDue = Reschedule.shift(task.dueAt, n, days);
-    await _coordinator.cancelIds(await _tasks.update(
-      task.copyWith(dueAt: newDue, updatedAt: n),
-    ));
+    await _coordinator.cancelIds(
+      await _tasks.update(task.copyWith(dueAt: newDue, updatedAt: n)),
+    );
     if (oldReminder != null && task.isActive) {
       final offset = task.dueAt == null
           ? Duration.zero
@@ -323,28 +324,44 @@ class SaveBill {
   }
 }
 
-/// Menandai tagihan dibayar. Sengaja TIDAK mengurangi saldo akun: pengguna
-/// memperbarui saldo terkonfirmasi sendiri (TDD bagian 5). Tagihan berulang
-/// otomatis membuat tagihan bulan/minggu berikutnya (idempoten).
+/// Marks a bill paid and records its expense before creating the next occurrence.
 class MarkBillPaid {
   MarkBillPaid(this._finance, this._reminders, this._coordinator);
   final FinanceRepository _finance;
   final ReminderRepository _reminders;
   final ReminderCoordinator _coordinator;
+  _BillPaymentUndo? _undo;
 
-  Future<Bill?> call(String billId, {DateTime? now}) async {
+  Future<Bill?> call(
+    String billId, {
+    required String accountId,
+    DateTime? now,
+  }) async {
     final bill = await _finance.getBill(billId);
-    final oldReminder =
-        await _reminders.getForTarget(ReminderTargetType.bill, billId);
+    final oldReminder = await _reminders.getForTarget(
+      ReminderTargetType.bill,
+      billId,
+    );
     final n = now ?? DateTime.now();
-    final ids = await _finance.markBillPaid(billId, n);
+    final ids = await _finance.markBillPaid(billId, accountId, n);
     await _coordinator.cancelIds(ids);
 
-    final rule = RecurrenceRule.tryParse(bill?.recurrenceRule);
-    if (bill == null || rule == null || !bill.isUnpaid) return null;
+    if (bill == null || !bill.isUnpaid) return null;
+    final rule = RecurrenceRule.tryParse(bill.recurrenceRule);
+    if (rule == null) {
+      _undo = _BillPaymentUndo(
+        billId: bill.id,
+        nextBillId: null,
+        reminderAt: oldReminder?.remindAt,
+      );
+      return null;
+    }
     // Dibayar terlambat: tagihan berikutnya tetap di jadwal kalender aslinya,
     // tetapi tidak boleh langsung jatuh di masa lalu.
-    final nextDue = rule.nextAfter(bill.dueAt, n.subtract(const Duration(days: 1)));
+    final nextDue = rule.nextAfter(
+      bill.dueAt,
+      n.subtract(const Duration(days: 1)),
+    );
     final next = await _finance.createNextBillIfAbsent(bill, nextDue);
     if (next != null && oldReminder != null) {
       final offset = bill.dueAt.difference(oldReminder.remindAt);
@@ -354,8 +371,46 @@ class MarkBillPaid {
         nextDue.subtract(offset),
       );
     }
+    _undo = _BillPaymentUndo(
+      billId: bill.id,
+      nextBillId: next?.id,
+      reminderAt: oldReminder?.remindAt,
+    );
     return next;
   }
+
+  Future<void> undo() async {
+    final undo = _undo;
+    if (undo == null) {
+      throw const ValidationException('Tidak ada pembayaran yang bisa diurungkan.');
+    }
+    final reminderIds = await _finance.undoBillPayment(
+      undo.billId,
+      nextBillId: undo.nextBillId,
+    );
+    await _coordinator.cancelIds(reminderIds);
+    final reminderAt = undo.reminderAt;
+    if (reminderAt != null) {
+      await _coordinator.setReminder(
+        ReminderTargetType.bill,
+        undo.billId,
+        reminderAt,
+      );
+    }
+    _undo = null;
+  }
+}
+
+class _BillPaymentUndo {
+  const _BillPaymentUndo({
+    required this.billId,
+    required this.nextBillId,
+    required this.reminderAt,
+  });
+
+  final String billId;
+  final String? nextBillId;
+  final DateTime? reminderAt;
 }
 
 class DeleteBill {
@@ -557,12 +612,12 @@ class GetDashboard {
     required FinanceRepository finance,
     required RoutineRepository routines,
     required SettingsRepository settings,
-  })  : _events = events,
-        _tasks = tasks,
-        _savedItems = savedItems,
-        _finance = finance,
-        _routines = routines,
-        _settings = settings;
+  }) : _events = events,
+       _tasks = tasks,
+       _savedItems = savedItems,
+       _finance = finance,
+       _routines = routines,
+       _settings = settings;
 
   final EventRepository _events;
   final TaskRepository _tasks;
@@ -581,28 +636,34 @@ class GetDashboard {
       DateTimeUtils.startOfNextDay(n),
     );
 
-    final activeTasks = await _tasks.list(statuses: {
-      TaskStatus.needsReview,
-      TaskStatus.todo,
-      TaskStatus.inProgress,
-    });
+    final activeTasks = await _tasks.list(
+      statuses: {
+        TaskStatus.needsReview,
+        TaskStatus.todo,
+        TaskStatus.inProgress,
+      },
+    );
     final overdue = activeTasks.where((t) => t.isOverdue(n)).toList()
       ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
     final nearest = TaskOrdering.nearestDeadlines(activeTasks);
-    final reviewTasks =
-        activeTasks.where((t) => t.status == TaskStatus.needsReview).length;
+    final reviewTasks = activeTasks
+        .where((t) => t.status == TaskStatus.needsReview)
+        .length;
     final reviewItems = await _savedItems.countNeedsReview();
 
     final accounts = await _finance.accounts();
     final unpaid = await _finance.bills(statuses: {BillStatus.unpaid});
-    final horizon = int.tryParse(
-            await _settings.get(SettingKeys.financeHorizonDays) ?? '') ??
+    final horizon =
+        int.tryParse(
+          await _settings.get(SettingKeys.financeHorizonDays) ?? '',
+        ) ??
         30;
-    final workdays =
-        int.tryParse(await _settings.get(SettingKeys.availableWorkdays) ?? '');
+    final workdays = int.tryParse(
+      await _settings.get(SettingKeys.availableWorkdays) ?? '',
+    );
     final income =
         int.tryParse(await _settings.get(SettingKeys.confirmedIncome) ?? '') ??
-            0;
+        0;
     final reality = RealityCheck.compute(
       accounts: accounts,
       bills: unpaid,
@@ -612,20 +673,24 @@ class GetDashboard {
       workdays: workdays,
     );
 
-    final routines = (await _routines.list(activeOnly: true))
-        .where((r) => r.nextDueAt != null)
-        .toList()
-      ..sort((a, b) => a.nextDueAt!.compareTo(b.nextDueAt!));
+    final routines =
+        (await _routines.list(
+            activeOnly: true,
+          )).where((r) => r.nextDueAt != null).toList()
+          ..sort((a, b) => a.nextDueAt!.compareTo(b.nextDueAt!));
     final dueRoutines = routines.where((r) => r.isDue(n)).length;
 
     // Pengingat backup hanya muncul bila sudah ada data yang layak diamankan.
-    final lastBackup =
-        DateTime.tryParse(await _settings.get(SettingKeys.lastBackupAt) ?? '');
-    final hasData = activeTasks.isNotEmpty ||
+    final lastBackup = DateTime.tryParse(
+      await _settings.get(SettingKeys.lastBackupAt) ?? '',
+    );
+    final hasData =
+        activeTasks.isNotEmpty ||
         reviewItems > 0 ||
         accounts.isNotEmpty ||
         unpaid.isNotEmpty;
-    final backupReminder = hasData &&
+    final backupReminder =
+        hasData &&
         (lastBackup == null ||
             n.difference(lastBackup).inDays >= backupReminderDays);
 

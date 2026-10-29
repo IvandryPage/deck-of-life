@@ -32,7 +32,7 @@ TDD ini menerjemahkan PRD Personal Life Hub menjadi rancangan implementasi yang 
 - Pencarian lokal lintas judul, isi teks, konteks, dan sumber.
 - Tugas dan statusnya.
 - Agenda dan pengingat lokal.
-- Akun/saldo manual, penyesuaian saldo, transaksi opsional, tagihan, target pendapatan harian.
+- Wallet, saldo berbasis ledger, koreksi saldo, transfer, bill berulang, dan target pendapatan harian.
 - Rutinitas dengan catatan penyelesaian terakhir dan jadwal berikutnya.
 - Ekspor dan impor backup manual.
 - Penanganan data offline, izin notifikasi, dan error database.
@@ -678,7 +678,7 @@ MVP dianggap siap untuk penggunaan pribadi ketika:
 2. **Notifikasi Android:** izin, battery optimization, dan versi Android memengaruhi delivery. Jangan mengasumsikan semua pengingat exact.
 3. **Zona waktu:** event lintas hari dan perubahan zona waktu dapat memengaruhi dashboard. Gunakan helper terpusat dan unit test.
 4. **Restore:** proses import yang tidak atomik dapat merusak data. Gunakan transaksi dan backup sebelum replace.
-5. **Keuangan:** saldo terkonfirmasi dan histori transaksi memiliki makna berbeda. UI harus menjelaskannya secara eksplisit.
+5. **Keuangan:** saldo wallet adalah saldo terakhir yang dikonfirmasi ditambah transaksi ledger setelahnya. Transaksi lama tetap disimpan tanpa dihitung ulang; transfer dan pembayaran bill memakai entri tertaut agar saldo tidak dihitung dua kali.
 6. **Overengineering:** jangan membangun AI, cloud, sinkronisasi, atau FTS5 sebelum kebutuhan MVP teruji.
 
 ---

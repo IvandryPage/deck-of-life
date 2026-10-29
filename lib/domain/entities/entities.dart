@@ -101,28 +101,27 @@ class Task {
     DateTime? updatedAt,
     DateTime? completedAt,
     bool clearCompletedAt = false,
-  }) =>
-      Task(
-        id: id ?? this.id,
-        title: title,
-        description: description,
-        status: status ?? this.status,
-        priority: priority,
-        dueAt: clearDueAt ? null : (dueAt ?? this.dueAt),
-        estimatedMinutes: estimatedMinutes,
-        courseName: courseName,
-        groupName: groupName,
-        taskKind: taskKind,
-        instructionSource: instructionSource,
-        instructionLocation: instructionLocation,
-        initiatedBy: initiatedBy,
-        nextAction: nextAction,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
-        archivedAt: archivedAt,
-        recurrenceRule: recurrenceRule,
-      );
+  }) => Task(
+    id: id ?? this.id,
+    title: title,
+    description: description,
+    status: status ?? this.status,
+    priority: priority,
+    dueAt: clearDueAt ? null : (dueAt ?? this.dueAt),
+    estimatedMinutes: estimatedMinutes,
+    courseName: courseName,
+    groupName: groupName,
+    taskKind: taskKind,
+    instructionSource: instructionSource,
+    instructionLocation: instructionLocation,
+    initiatedBy: initiatedBy,
+    nextAction: nextAction,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
+    archivedAt: archivedAt,
+    recurrenceRule: recurrenceRule,
+  );
 
   bool isOverdue(DateTime now) =>
       isActive && dueAt != null && dueAt!.isBefore(now);
@@ -200,7 +199,7 @@ class Account {
   final String name;
   final AccountType accountType;
 
-  /// Saldo terakhir yang dikonfirmasi manual. BUKAN hasil penjumlahan transaksi.
+  /// Saldo saat terakhir dikonfirmasi, plus transaksi ledger setelahnya.
   final int confirmedBalance;
   final DateTime balanceConfirmedAt;
   final bool isActive;
@@ -209,7 +208,7 @@ class Account {
 }
 
 /// Dinamai `MoneyTransaction` agar tidak bentrok dengan `Transaction` milik sqflite.
-/// Hanya histori opsional; tidak mengubah saldo terkonfirmasi (TDD 5 dan 6.5).
+/// Ledger entry. Legacy entries are retained but are not applied to balances.
 class MoneyTransaction {
   const MoneyTransaction({
     required this.id,
@@ -220,6 +219,9 @@ class MoneyTransaction {
     required this.occurredAt,
     required this.createdAt,
     this.note,
+    this.transferId,
+    this.billId,
+    this.affectsBalance = false,
   });
 
   final String id;
@@ -228,6 +230,9 @@ class MoneyTransaction {
   final TransactionDirection direction;
   final String category;
   final String? note;
+  final String? transferId;
+  final String? billId;
+  final bool affectsBalance;
   final DateTime occurredAt;
   final DateTime createdAt;
 }
@@ -289,20 +294,19 @@ class Bill {
     bool clearPaidAt = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) =>
-      Bill(
-        id: id ?? this.id,
-        title: title,
-        amount: amount,
-        dueAt: dueAt ?? this.dueAt,
-        status: status ?? this.status,
-        paidAt: clearPaidAt ? null : (paidAt ?? this.paidAt),
-        accountId: accountId,
-        note: note,
-        recurrenceRule: recurrenceRule,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => Bill(
+    id: id ?? this.id,
+    title: title,
+    amount: amount,
+    dueAt: dueAt ?? this.dueAt,
+    status: status ?? this.status,
+    paidAt: clearPaidAt ? null : (paidAt ?? this.paidAt),
+    accountId: accountId,
+    note: note,
+    recurrenceRule: recurrenceRule,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   bool get isRecurring => recurrenceRule != null;
   bool get isUnpaid => status == BillStatus.unpaid;
@@ -346,19 +350,19 @@ class Routine {
       isActive && nextDueAt != null && !nextDueAt!.isAfter(now);
 
   Routine copyWith({DateTime? nextDueAt, DateTime? updatedAt}) => Routine(
-        id: id,
-        title: title,
-        description: description,
-        recurrenceType: recurrenceType,
-        intervalDays: intervalDays,
-        weekdays: weekdays,
-        preferredTime: preferredTime,
-        nextDueAt: nextDueAt ?? this.nextDueAt,
-        lastCompletedAt: lastCompletedAt,
-        isActive: isActive,
-        createdAt: createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+    id: id,
+    title: title,
+    description: description,
+    recurrenceType: recurrenceType,
+    intervalDays: intervalDays,
+    weekdays: weekdays,
+    preferredTime: preferredTime,
+    nextDueAt: nextDueAt ?? this.nextDueAt,
+    lastCompletedAt: lastCompletedAt,
+    isActive: isActive,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 }
 
 class RoutineLog {
