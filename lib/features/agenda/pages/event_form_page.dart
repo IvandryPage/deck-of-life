@@ -9,6 +9,7 @@ import '../../../core/widgets/date_time_field.dart';
 import '../../../core/widgets/form_widgets.dart';
 import '../../../domain/entities/entities.dart';
 import '../../../domain/entities/enums.dart';
+import '../../../domain/entities/recurrence.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/usecases.dart';
 
@@ -30,6 +31,7 @@ class _EventFormPageState extends State<EventFormPage> {
   DateTime? _end;
   DateTime? _reminder;
   EventType _type = EventType.other;
+  RecurrenceKind? _repeat;
   bool _saving = false;
   String? _timeError;
 
@@ -48,13 +50,14 @@ class _EventFormPageState extends State<EventFormPage> {
       _start = e.startsAt;
       _end = e.endsAt;
       _type = e.eventType;
+      _repeat = RecurrenceRule.tryParse(e.recurrenceRule)?.kind;
       Get.find<ReminderRepository>()
           .getForTarget(ReminderTargetType.event, e.id)
           .then((r) {
-        if (mounted && r != null && r.isEnabled) {
-          setState(() => _reminder = r.remindAt);
-        }
-      });
+            if (mounted && r != null && r.isEnabled) {
+              setState(() => _reminder = r.remindAt);
+            }
+          });
     } else if (presetDay != null) {
       // Hari dari Kalender; jam awal 09:00 yang bisa diubah (bukan data palsu).
       _start = DateTime(presetDay.year, presetDay.month, presetDay.day, 9);
@@ -92,6 +95,9 @@ class _EventFormPageState extends State<EventFormPage> {
       eventType: _type,
       linkedTaskId: e?.linkedTaskId,
       linkedSavedItemId: e?.linkedSavedItemId,
+      recurrenceRule: _repeat == null || _start == null
+          ? null
+          : RecurrenceRule.forDue(_repeat!, _start!).encoded,
       createdAt: e?.createdAt ?? now,
       updatedAt: now,
     );
@@ -99,7 +105,7 @@ class _EventFormPageState extends State<EventFormPage> {
       final result = await Get.find<SaveEvent>()(
         event,
         isNew: e == null,
-        reminderAt: _reminder,
+        reminderAt: _repeat == null ? _reminder : null,
       );
       Get.find<DataRevision>().bump();
       final msg = result.reminder?.message;
@@ -115,6 +121,7 @@ class _EventFormPageState extends State<EventFormPage> {
   bool get _hasAdvanced =>
       _end != null ||
       _type != EventType.other ||
+      _repeat != null ||
       _location.text.trim().isNotEmpty ||
       _description.text.trim().isNotEmpty;
 
@@ -135,8 +142,9 @@ class _EventFormPageState extends State<EventFormPage> {
           textCapitalization: TextCapitalization.sentences,
           style: Theme.of(context).textTheme.titleMedium,
           decoration: const InputDecoration(labelText: 'Judul agenda'),
-          validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'Judul agenda wajib diisi' : null,
+          validator: (v) => (v == null || v.trim().isEmpty)
+              ? 'Judul agenda wajib diisi'
+              : null,
         ),
         DateTimeField(
           label: 'Mulai',
@@ -152,25 +160,56 @@ class _EventFormPageState extends State<EventFormPage> {
             _timeError!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-        ReminderField(
-          value: _reminder,
-          anchor: _start,
-          presets: const [
-            ReminderPreset('15 menit sebelum', Duration(minutes: 15)),
-            ReminderPreset('1 jam sebelum', Duration(hours: 1)),
-            ReminderPreset('1 hari sebelum', Duration(days: 1)),
-          ],
-          onChanged: (v) => setState(() => _reminder = v),
-        ),
+        if (_repeat == null)
+          ReminderField(
+            value: _reminder,
+            anchor: _start,
+            presets: const [
+              ReminderPreset('15 menit sebelum', Duration(minutes: 15)),
+              ReminderPreset('1 jam sebelum', Duration(hours: 1)),
+              ReminderPreset('1 hari sebelum', Duration(days: 1)),
+            ],
+            onChanged: (v) => setState(() => _reminder = v),
+          )
+        else
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Pengingat berulang belum tersedia. Acara akan muncul di setiap tanggal yang sesuai.',
+            ),
+          ),
         AdvancedOptions(
           initiallyOpen: _openAdvanced,
           children: [
+            DropdownButtonFormField<RecurrenceKind?>(
+              initialValue: _repeat,
+              decoration: const InputDecoration(labelText: 'Ulangi'),
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text('Tidak berulang'),
+                ),
+                for (final kind in const [
+                  RecurrenceKind.daily,
+                  RecurrenceKind.weekly,
+                  RecurrenceKind.monthly,
+                ])
+                  DropdownMenuItem(value: kind, child: Text(kind.label)),
+              ],
+              onChanged: (value) => setState(() {
+                _repeat = value;
+                if (value != null) _reminder = null;
+              }),
+            ),
             DateTimeField(
               label: 'Selesai',
               value: _end,
               emptyText: 'Tanpa waktu selesai',
               defaultTime: _start != null
-                  ? TimeOfDay(hour: (_start!.hour + 1) % 24, minute: _start!.minute)
+                  ? TimeOfDay(
+                      hour: (_start!.hour + 1) % 24,
+                      minute: _start!.minute,
+                    )
                   : const TimeOfDay(hour: 10, minute: 0),
               onChanged: (v) => setState(() => _end = v),
             ),

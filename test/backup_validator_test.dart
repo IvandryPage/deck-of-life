@@ -46,12 +46,12 @@ Map<String, Object?> _item(String id) => {
 };
 
 ParsedBackup _parse(String text) =>
-    BackupValidator.parse(text, currentSchemaVersion: 3);
+    BackupValidator.parse(text, currentSchemaVersion: 4);
 
 void main() {
   test('backup kosong yang valid diterima', () {
-    final p = _parse(_backup(schema: 3));
-    expect(p.schemaVersion, 3);
+    final p = _parse(_backup(schema: 4));
+    expect(p.schemaVersion, 4);
     expect(p.totalRows, 0);
   });
 
@@ -86,6 +86,29 @@ void main() {
     expect(p.data['transactions']!.single['bill_id'], isNull);
   });
 
+  test('backup v3 mengisi event lama sebagai non-berulang', () {
+    final p = _parse(_backup(schema: 3));
+    expect(p.data['events'], isEmpty);
+    final data = _emptyData();
+    data['events'] = [
+      {
+        'id': 'event',
+        'title': 'Kuliah',
+        'description': '',
+        'starts_at': '2026-10-26T08:00:00+07:00',
+        'ends_at': null,
+        'location': null,
+        'event_type': 'lecture',
+        'linked_task_id': null,
+        'linked_saved_item_id': null,
+        'created_at': '2026-10-26T08:00:00+07:00',
+        'updated_at': '2026-10-26T08:00:00+07:00',
+      },
+    ];
+    final upgraded = _parse(_backup(schema: 3, data: data));
+    expect(upgraded.data['events']!.single['recurrence_rule'], isNull);
+  });
+
   test('backup tanpa checksum tetap diterima (checksum opsional)', () {
     expect(_parse(_backup(withChecksum: false)).totalRows, 0);
   });
@@ -103,7 +126,7 @@ void main() {
 
   test('skema lebih baru dari aplikasi ditolak dengan pesan yang jelas', () {
     expect(
-      () => _parse(_backup(schema: 4)),
+      () => _parse(_backup(schema: 5)),
       throwsA(
         isA<BackupFormatException>().having(
           (e) => e.message,

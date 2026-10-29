@@ -125,6 +125,7 @@ class EventRow {
     eventType: EventType.fromValue(_s(r, 'event_type')),
     linkedTaskId: _sn(r, 'linked_task_id'),
     linkedSavedItemId: _sn(r, 'linked_saved_item_id'),
+    recurrenceRule: _sn(r, 'recurrence_rule'),
     createdAt: _d(r, 'created_at'),
     updatedAt: _d(r, 'updated_at'),
   );
@@ -139,6 +140,7 @@ class EventRow {
     'event_type': e.eventType.value,
     'linked_task_id': e.linkedTaskId,
     'linked_saved_item_id': e.linkedSavedItemId,
+    'recurrence_rule': blankToNull(e.recurrenceRule),
     'created_at': DateTimeUtils.toIso(e.createdAt),
     'updated_at': DateTimeUtils.toIso(e.updatedAt),
   };

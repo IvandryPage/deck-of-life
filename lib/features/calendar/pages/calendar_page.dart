@@ -10,10 +10,28 @@ import '../../../domain/entities/entities.dart';
 import '../../shell/controllers/shell_controller.dart';
 import '../controllers/calendar_controller.dart';
 
-const List<String> _weekdays = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+const List<String> _weekdays = [
+  'Sen',
+  'Sel',
+  'Rab',
+  'Kam',
+  'Jum',
+  'Sab',
+  'Min',
+];
 const List<String> _months = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
 ];
 
 /// Tab Kalender: bulan ringkas di atas, daftar hari terpilih di bawah.
@@ -42,11 +60,13 @@ class CalendarPage extends GetView<CalendarController> {
             if (controller.isLoading.value)
               const Padding(
                 padding: EdgeInsets.all(AppSpace.gutter),
-                child: Column(children: [
-                  SkeletonBox(height: 56, radius: AppRadius.md),
-                  SizedBox(height: AppSpace.sm),
-                  SkeletonBox(height: 56, radius: AppRadius.md),
-                ]),
+                child: Column(
+                  children: [
+                    SkeletonBox(height: 56, radius: AppRadius.md),
+                    SizedBox(height: AppSpace.sm),
+                    SkeletonBox(height: 56, radius: AppRadius.md),
+                  ],
+                ),
               )
             else
               _DayAgenda(day: day),
@@ -65,7 +85,9 @@ class _MonthHeader extends GetView<CalendarController> {
     return Obx(() {
       final m = controller.month.value;
       final isCurrent = DateTimeUtils.isSameDay(
-          DateTime(m.year, m.month), DateTime(DateTime.now().year, DateTime.now().month));
+        DateTime(m.year, m.month),
+        DateTime(DateTime.now().year, DateTime.now().month),
+      );
       return Padding(
         padding: const EdgeInsets.fromLTRB(AppSpace.sm, 0, AppSpace.sm, 0),
         child: Row(
@@ -87,7 +109,10 @@ class _MonthHeader extends GetView<CalendarController> {
               ),
             ),
             if (!isCurrent)
-              TextButton(onPressed: controller.goToday, child: const Text('Hari ini')),
+              TextButton(
+                onPressed: controller.goToday,
+                child: const Text('Hari ini'),
+              ),
             IconButton(
               tooltip: 'Bulan berikutnya',
               icon: const Icon(Icons.chevron_right),
@@ -131,20 +156,22 @@ class _MonthGrid extends GetView<CalendarController> {
                 children: [
                   for (var c = 0; c < 7; c++)
                     Expanded(
-                      child: Builder(builder: (_) {
-                        final n = r * 7 + c - lead + 1;
-                        if (n < 1 || n > daysInMonth) {
-                          return const SizedBox(height: AppSize.calendarCell);
-                        }
-                        final d = DateTime(m.year, m.month, n);
-                        return _DayCell(
-                          date: d,
-                          isToday: DateTimeUtils.isSameDay(d, today),
-                          isSelected: DateTimeUtils.isSameDay(d, selected),
-                          markers: controller.markersOn(d),
-                          onTap: () => controller.select(d),
-                        );
-                      }),
+                      child: Builder(
+                        builder: (_) {
+                          final n = r * 7 + c - lead + 1;
+                          if (n < 1 || n > daysInMonth) {
+                            return const SizedBox(height: AppSize.calendarCell);
+                          }
+                          final d = DateTime(m.year, m.month, n);
+                          return _DayCell(
+                            date: d,
+                            isToday: DateTimeUtils.isSameDay(d, today),
+                            isSelected: DateTimeUtils.isSameDay(d, selected),
+                            markers: controller.markersOn(d),
+                            onTap: () => controller.select(d),
+                          );
+                        },
+                      ),
                     ),
                 ],
               ),
@@ -163,8 +190,9 @@ class _MonthGrid extends GetView<CalendarController> {
                     child: Center(
                       child: Text(
                         w,
-                        style: context.text.labelMedium
-                            ?.copyWith(color: context.scheme.onSurfaceVariant),
+                        style: context.text.labelMedium?.copyWith(
+                          color: context.scheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
@@ -216,7 +244,8 @@ class _DayCell extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label: '${Formatters.date(date)}'
+      label:
+          '${Formatters.date(date)}'
           '${isToday ? ', hari ini' : ''}'
           '${markers > 0 ? ', $markers entri' : ''}',
       child: InkResponse(
@@ -245,7 +274,9 @@ class _DayCell extends StatelessWidget {
                     '${date.day}',
                     style: context.text.bodyMedium?.copyWith(
                       color: fg,
-                      fontWeight: isToday || isSelected ? FontWeight.w700 : null,
+                      fontWeight: isToday || isSelected
+                          ? FontWeight.w700
+                          : null,
                       fontFeatures: AppText.tabular,
                     ),
                   ),
@@ -307,9 +338,11 @@ class _DayAgenda extends GetView<CalendarController> {
           compact: true,
           icon: Icons.event_available_outlined,
           title: 'Tidak ada agenda',
-          message: 'Hari ini kosong. Tambahkan agenda cukup dengan judul dan waktu.',
+          message:
+              'Hari ini kosong. Tambahkan agenda cukup dengan judul dan waktu.',
           actionLabel: 'Agenda baru',
-          onAction: () => Get.toNamed<dynamic>(Routes.eventForm, arguments: day),
+          onAction: () =>
+              Get.toNamed<dynamic>(Routes.eventForm, arguments: day),
         );
       }
       final now = DateTime.now();
@@ -325,7 +358,8 @@ class _DayAgenda extends GetView<CalendarController> {
                 kind: 'Deadline tugas',
                 title: t.title,
                 trailing: Formatters.time(t.dueAt!),
-                onTap: () => Get.toNamed<dynamic>(Routes.taskDetail, arguments: t.id),
+                onTap: () =>
+                    Get.toNamed<dynamic>(Routes.taskDetail, arguments: t.id),
               ),
             for (final b in bills)
               _InfoRow(
@@ -333,7 +367,9 @@ class _DayAgenda extends GetView<CalendarController> {
                 kind: 'Tagihan jatuh tempo',
                 title: b.title,
                 trailing: Formatters.rupiah(b.amount),
-                onTap: () => Get.find<ShellController>().goTo(ShellController.tabFinance),
+                onTap: () => Get.find<ShellController>().goTo(
+                  ShellController.tabFinance,
+                ),
               ),
           ],
         ),
@@ -354,7 +390,7 @@ class _EventRow extends GetView<CalendarController> {
     final ongoing = !e.startsAt.isAfter(now) && !over && e.endsAt != null;
     final scheme = context.scheme;
     return Dismissible(
-      key: ValueKey('ev-${e.id}'),
+      key: ValueKey('ev-${e.id}-${e.startsAt.toIso8601String()}'),
       direction: DismissDirection.endToStart,
       background: Container(
         color: scheme.errorContainer,
@@ -365,7 +401,9 @@ class _EventRow extends GetView<CalendarController> {
       confirmDismiss: (_) => confirmDialog(
         context,
         title: 'Hapus agenda?',
-        message: '"${e.title}" dan pengingatnya akan dihapus.',
+        message: e.isRecurring
+            ? 'Seluruh rangkaian "${e.title}" dan pengingatnya akan dihapus.'
+            : '"${e.title}" dan pengingatnya akan dihapus.',
         confirmLabel: 'Hapus',
         destructive: true,
       ),
@@ -386,22 +424,27 @@ class _EventRow extends GetView<CalendarController> {
           e.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: over
-              ? TextStyle(color: scheme.onSurfaceVariant)
-              : null,
+          style: over ? TextStyle(color: scheme.onSurfaceVariant) : null,
         ),
         subtitle: Wrap(
           spacing: AppSpace.sm,
           runSpacing: AppSpace.xs,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text([
-              e.eventType.label,
-              if (e.endsAt != null) 's.d. ${Formatters.time(e.endsAt!)}',
-              if (e.location != null) e.location!,
-            ].join(' · ')),
+            Text(
+              [
+                e.eventType.label,
+                if (e.endsAt != null) 's.d. ${Formatters.time(e.endsAt!)}',
+                if (e.location != null) e.location!,
+              ].join(' · '),
+            ),
+            if (e.isRecurring) const StatusTag('Berulang', icon: Icons.repeat),
             if (ongoing)
-              const StatusTag('Berlangsung', icon: Icons.play_arrow, tone: TagTone.success)
+              const StatusTag(
+                'Berlangsung',
+                icon: Icons.play_arrow,
+                tone: TagTone.success,
+              )
             else if (over)
               const StatusTag('Selesai', icon: Icons.check),
           ],
@@ -429,14 +472,14 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        minTileHeight: AppSize.tap + 8,
-        leading: SizedBox(
-          width: 52,
-          child: Icon(icon, color: context.scheme.onSurfaceVariant),
-        ),
-        title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-        subtitle: Text(kind),
-        trailing: Text(trailing, style: context.text.labelLarge),
-        onTap: onTap,
-      );
+    minTileHeight: AppSize.tap + 8,
+    leading: SizedBox(
+      width: 52,
+      child: Icon(icon, color: context.scheme.onSurfaceVariant),
+    ),
+    title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+    subtitle: Text(kind),
+    trailing: Text(trailing, style: context.text.labelLarge),
+    onTap: onTap,
+  );
 }

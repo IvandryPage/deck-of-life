@@ -36,9 +36,11 @@ class _TaskFormPageState extends State<TaskFormPage> {
   final _group = TextEditingController();
   final _source = TextEditingController();
   final _location = TextEditingController();
+  final _intervalDays = TextEditingController(text: '3');
 
   DateTime? _due;
   RecurrenceKind? _repeat;
+  final Set<int> _repeatWeekdays = {};
   DateTime? _reminder;
   TaskPriority _priority = TaskPriority.normal;
   TaskStatus _status = TaskStatus.todo;
@@ -60,17 +62,22 @@ class _TaskFormPageState extends State<TaskFormPage> {
       _source.text = t.instructionSource ?? '';
       _location.text = t.instructionLocation ?? '';
       _due = t.dueAt;
-      _repeat = RecurrenceRule.tryParse(t.recurrenceRule)?.kind;
+      final rule = RecurrenceRule.tryParse(t.recurrenceRule);
+      _repeat = rule?.kind;
+      if (rule?.intervalDays != null) {
+        _intervalDays.text = rule!.intervalDays.toString();
+      }
+      _repeatWeekdays.addAll(rule?.weekdays ?? const []);
       _priority = t.priority;
       _status = t.status;
       _kind = t.taskKind;
       Get.find<ReminderRepository>()
           .getForTarget(ReminderTargetType.task, t.id)
           .then((r) {
-        if (mounted && r != null && r.isEnabled) {
-          setState(() => _reminder = r.remindAt);
-        }
-      });
+            if (mounted && r != null && r.isEnabled) {
+              setState(() => _reminder = r.remindAt);
+            }
+          });
     } else {
       _title.text = _args.title ?? '';
       _description.text = _args.description ?? '';
@@ -82,7 +89,15 @@ class _TaskFormPageState extends State<TaskFormPage> {
   @override
   void dispose() {
     for (final c in [
-      _title, _description, _nextAction, _minutes, _course, _group, _source, _location,
+      _title,
+      _description,
+      _nextAction,
+      _minutes,
+      _course,
+      _group,
+      _source,
+      _location,
+      _intervalDays,
     ]) {
       c.dispose();
     }
@@ -91,6 +106,13 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_repeat == RecurrenceKind.weekdays && _repeatWeekdays.isEmpty) {
+      AppToast.show(
+        'Pilih setidaknya satu hari untuk pengulangan.',
+        isError: true,
+      );
+      return;
+    }
     setState(() => _saving = true);
     final now = DateTime.now();
     final e = _existing;
@@ -113,9 +135,19 @@ class _TaskFormPageState extends State<TaskFormPage> {
       updatedAt: now,
       completedAt: e?.completedAt,
       archivedAt: e?.archivedAt,
-      recurrenceRule: (_repeat != null && _due != null)
-          ? RecurrenceRule.forDue(_repeat!, _due!).encoded
-          : null,
+      recurrenceRule: _repeat == null || _due == null
+          ? null
+          : switch (_repeat!) {
+              RecurrenceKind.interval => RecurrenceRule(
+                RecurrenceKind.interval,
+                intervalDays: int.parse(_intervalDays.text.trim()),
+              ).encoded,
+              RecurrenceKind.weekdays => RecurrenceRule(
+                RecurrenceKind.weekdays,
+                weekdays: _repeatWeekdays.toList(),
+              ).encoded,
+              _ => RecurrenceRule.forDue(_repeat!, _due!).encoded,
+            },
     );
     try {
       final result = await Get.find<SaveTask>()(
@@ -141,8 +173,15 @@ class _TaskFormPageState extends State<TaskFormPage> {
       _status != TaskStatus.todo ||
       _repeat != null ||
       _kind != TaskKind.individual ||
-      [_description, _nextAction, _minutes, _course, _group, _source, _location]
-          .any((c) => c.text.trim().isNotEmpty);
+      [
+        _description,
+        _nextAction,
+        _minutes,
+        _course,
+        _group,
+        _source,
+        _location,
+      ].any((c) => c.text.trim().isNotEmpty);
 
   late final bool _openAdvanced = _hasAdvanced;
 
@@ -165,8 +204,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
           textInputAction: TextInputAction.next,
           style: Theme.of(context).textTheme.titleMedium,
           decoration: const InputDecoration(labelText: 'Judul tugas'),
-          validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'Judul tugas wajib diisi' : null,
+          validator: (v) => (v == null || v.trim().isEmpty)
+              ? 'Judul tugas wajib diisi'
+              : null,
         ),
         DateTimeField(
           label: 'Deadline',
@@ -219,11 +259,62 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 initialValue: _repeat,
                 decoration: const InputDecoration(labelText: 'Ulangi'),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Tidak berulang')),
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('Tidak berulang'),
+                  ),
                   for (final k in RecurrenceKind.values)
                     DropdownMenuItem(value: k, child: Text(k.label)),
                 ],
-                onChanged: (v) => setState(() => _repeat = v),
+                onChanged: (v) => setState(() {
+                  _repeat = v;
+                  if (v == RecurrenceKind.weekdays &&
+                      _repeatWeekdays.isEmpty &&
+                      _due != null) {
+                    _repeatWeekdays.add(_due!.weekday);
+                  }
+                }),
+              ),
+            if (_repeat == RecurrenceKind.interval)
+              TextFormField(
+                controller: _intervalDays,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Ulangi setiap berapa hari',
+                ),
+                validator: (value) {
+                  if (_repeat != RecurrenceKind.interval) return null;
+                  final days = int.tryParse(value?.trim() ?? '');
+                  return days == null || days < 1
+                      ? 'Masukkan jumlah hari minimal 1'
+                      : null;
+                },
+              ),
+            if (_repeat == RecurrenceKind.weekdays)
+              Wrap(
+                spacing: AppSpace.xs,
+                children: [
+                  for (final (index, label) in [
+                    'Sen',
+                    'Sel',
+                    'Rab',
+                    'Kam',
+                    'Jum',
+                    'Sab',
+                    'Min',
+                  ].indexed)
+                    FilterChip(
+                      label: Text(label),
+                      selected: _repeatWeekdays.contains(index + 1),
+                      onSelected: (selected) => setState(() {
+                        if (selected) {
+                          _repeatWeekdays.add(index + 1);
+                        } else {
+                          _repeatWeekdays.remove(index + 1);
+                        }
+                      }),
+                    ),
+                ],
               ),
             TextFormField(
               controller: _description,
@@ -237,7 +328,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
             ),
             TextFormField(
               controller: _course,
-              decoration: const InputDecoration(labelText: 'Mata kuliah / kategori'),
+              decoration: const InputDecoration(
+                labelText: 'Mata kuliah / kategori',
+              ),
             ),
             TextFormField(
               controller: _group,
@@ -260,12 +353,16 @@ class _TaskFormPageState extends State<TaskFormPage> {
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null;
                 final n = int.tryParse(v.trim());
-                return (n == null || n < 0) ? 'Isi angka menit yang valid' : null;
+                return (n == null || n < 0)
+                    ? 'Isi angka menit yang valid'
+                    : null;
               },
             ),
             TextFormField(
               controller: _nextAction,
-              decoration: const InputDecoration(labelText: 'Langkah berikutnya'),
+              decoration: const InputDecoration(
+                labelText: 'Langkah berikutnya',
+              ),
             ),
             TextFormField(
               controller: _source,

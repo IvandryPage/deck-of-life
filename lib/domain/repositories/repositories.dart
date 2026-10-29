@@ -164,6 +164,8 @@ abstract interface class RoutineRepository {
   Future<void> update(Routine routine);
   Future<NotificationIds> delete(String id);
   Future<List<Routine>> list({bool activeOnly = false});
+  Future<void> migrateToRecurringTasks();
+  Future<List<RoutineLog>> logsForTask(String taskId, {int limit = 20});
 
   /// Satu transaksi DB: insert `routine_logs`, set `last_completed_at`, hitung `next_due_at`.
   Future<Routine> complete(String id, DateTime completedAt, {String? note});

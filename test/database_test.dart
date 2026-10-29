@@ -266,6 +266,37 @@ void main() {
       );
       expect(today.map((e) => e.id), ['pagi', 'malam']);
     });
+
+    test(
+      'listBetween mengembangkan agenda mingguan dari tanggal awal',
+      () async {
+        await events.create(
+          Event(
+            id: 'class',
+            title: 'Kelas Database',
+            startsAt: DateTime(2026, 10, 5, 8),
+            endsAt: DateTime(2026, 10, 5, 10),
+            recurrenceRule: 'weekly',
+            createdAt: t0,
+            updatedAt: t0,
+          ),
+        );
+
+        final occurrences = await events.listBetween(
+          DateTime(2026, 10, 19),
+          DateTime(2026, 11, 2),
+        );
+        expect(occurrences.map((event) => event.startsAt), [
+          DateTime(2026, 10, 19, 8),
+          DateTime(2026, 10, 26, 8),
+        ]);
+        expect(occurrences.map((event) => event.endsAt), [
+          DateTime(2026, 10, 19, 10),
+          DateTime(2026, 10, 26, 10),
+        ]);
+        expect(occurrences.map((event) => event.id).toSet(), {'class'});
+      },
+    );
   });
 
   group('Keuangan', () {
@@ -589,6 +620,70 @@ void main() {
       );
       expect((await routines.getById('w'))!.weekdays, [1, 4]);
     });
+
+    test(
+      'rutinitas dimigrasikan menjadi tugas berulang tanpa menghapus riwayat',
+      () async {
+        await routines.create(
+          Routine(
+            id: 'legacy',
+            title: 'Olahraga',
+            description: 'Jalan pagi',
+            recurrenceType: RecurrenceType.weekly,
+            weekdays: const [1, 3],
+            preferredTime: '08:00',
+            nextDueAt: DateTime(2026, 11, 2, 8),
+            createdAt: t0,
+            updatedAt: t0,
+          ),
+        );
+        await routines.complete(
+          'legacy',
+          DateTime(2026, 10, 28, 8),
+          note: 'jalan 3 km',
+        );
+        await reminders.upsertForTarget(
+          type: ReminderTargetType.routine,
+          targetId: 'legacy',
+          remindAt: DateTime(2026, 11, 2, 7),
+        );
+
+        await routines.migrateToRecurringTasks();
+        await routines.migrateToRecurringTasks();
+
+        final routine = await routines.getById('legacy');
+        final task = await tasks.getById(
+          (await db.raw.query(
+                'routines',
+                columns: ['migrated_task_id'],
+                where: 'id = ?',
+                whereArgs: ['legacy'],
+              )).single['migrated_task_id']!
+              as String,
+        );
+        expect(task!.title, 'Olahraga');
+        expect(task.description, 'Jalan pagi');
+        expect(task.dueAt, DateTime(2026, 11, 2, 8));
+        expect(task.recurrenceRule, 'weekdays:1,3');
+        expect(routine!.id, 'legacy');
+        expect((await routines.logsForTask(task.id)).single.note, 'jalan 3 km');
+        expect(
+          (await reminders.getForTarget(
+            ReminderTargetType.task,
+            task.id,
+          ))?.remindAt,
+          DateTime(2026, 11, 2, 7),
+        );
+        expect(
+          await reminders.getForTarget(ReminderTargetType.routine, 'legacy'),
+          isNull,
+        );
+        expect(
+          (await tasks.list()).where((entry) => entry.title == 'Olahraga'),
+          hasLength(1),
+        );
+      },
+    );
   });
 
   group('Backup & restore', () {
@@ -605,6 +700,7 @@ void main() {
           id: 'e1',
           title: 'Kuliah',
           startsAt: DateTime(2026, 11, 2, 8),
+          recurrenceRule: 'weekly',
           linkedTaskId: 't1',
           createdAt: t0,
           updatedAt: t0,
@@ -658,6 +754,10 @@ void main() {
         expect(
           (await EventRepositoryImpl(target).getById('e1'))!.linkedTaskId,
           't1',
+        );
+        expect(
+          (await EventRepositoryImpl(target).getById('e1'))!.recurrenceRule,
+          'weekly',
         );
         expect(
           (await FinanceRepositoryImpl(

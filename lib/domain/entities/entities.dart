@@ -140,6 +140,7 @@ class Event {
     this.eventType = EventType.other,
     this.linkedTaskId,
     this.linkedSavedItemId,
+    this.recurrenceRule,
   });
 
   final String id;
@@ -151,8 +152,26 @@ class Event {
   final EventType eventType;
   final String? linkedTaskId;
   final String? linkedSavedItemId;
+  final String? recurrenceRule;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  bool get isRecurring => recurrenceRule != null;
+
+  Event copyWith({DateTime? startsAt, DateTime? endsAt}) => Event(
+    id: id,
+    title: title,
+    description: description,
+    startsAt: startsAt ?? this.startsAt,
+    endsAt: endsAt ?? this.endsAt,
+    location: location,
+    eventType: eventType,
+    linkedTaskId: linkedTaskId,
+    linkedSavedItemId: linkedSavedItemId,
+    recurrenceRule: recurrenceRule,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+  );
 }
 
 class Reminder {

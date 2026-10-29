@@ -407,8 +407,8 @@ void main() {
     );
   });
 
-  group('Migrasi v1 -> v3 mempertahankan data', () {
-    test('database v1 berisi data dibuka oleh aplikasi v3', () async {
+  group('Migrasi v1 -> v4 mempertahankan data', () {
+    test('database v1 berisi data dibuka oleh aplikasi v4', () async {
       final tmp = Directory.systemTemp.createTempSync('dol_mig_');
       addTearDown(() => tmp.deleteSync(recursive: true));
       final path = '${tmp.path}/v1.db';
@@ -432,6 +432,13 @@ void main() {
         'created_at': '2026-10-01T08:00:00+07:00',
         'updated_at': '2026-10-01T08:00:00+07:00',
       });
+      await old.insert('events', {
+        'id': 'old-event',
+        'title': 'Agenda lama',
+        'starts_at': '2026-10-02T08:00:00+07:00',
+        'created_at': '2026-10-01T08:00:00+07:00',
+        'updated_at': '2026-10-01T08:00:00+07:00',
+      });
       await old.close();
 
       final upgraded = await AppDatabase.open(path: path);
@@ -439,7 +446,13 @@ void main() {
       final t = await TaskRepositoryImpl(upgraded).getById('old1');
       expect(t!.title, 'Tugas lama');
       expect(t.recurrenceRule, isNull);
-      expect(AppDatabase.schemaVersion, 3);
+      expect(
+        (await EventRepositoryImpl(
+          upgraded,
+        ).getById('old-event'))!.recurrenceRule,
+        isNull,
+      );
+      expect(AppDatabase.schemaVersion, 4);
     });
   });
 }

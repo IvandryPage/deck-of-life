@@ -13,6 +13,13 @@ void main() {
       expect(RecurrenceRule.tryParse('weekly')!.encoded, 'weekly');
       expect(RecurrenceRule.tryParse('monthly:31')!.anchorDay, 31);
       expect(RecurrenceRule.tryParse('monthly:99'), isNull);
+      expect(RecurrenceRule.tryParse('interval:3')!.encoded, 'interval:3');
+      expect(RecurrenceRule.tryParse('interval:0'), isNull);
+      expect(
+        RecurrenceRule.tryParse('weekdays:1,3,5')!.encoded,
+        'weekdays:1,3,5',
+      );
+      expect(RecurrenceRule.tryParse('weekdays:1,8'), isNull);
       expect(RecurrenceRule.tryParse('???'), isNull);
       expect(RecurrenceRule.tryParse(null), isNull);
     });
@@ -32,8 +39,31 @@ void main() {
 
     test('nextAfter tidak menghasilkan tanggal yang sudah lewat', () {
       const r = RecurrenceRule(RecurrenceKind.daily);
-      final n = r.nextAfter(DateTime(2026, 10, 1, 8), DateTime(2026, 10, 6, 12));
+      final n = r.nextAfter(
+        DateTime(2026, 10, 1, 8),
+        DateTime(2026, 10, 6, 12),
+      );
       expect(n, DateTime(2026, 10, 7, 8));
+    });
+
+    test('interval dan beberapa hari mingguan memakai jam yang sama', () {
+      const interval = RecurrenceRule(RecurrenceKind.interval, intervalDays: 3);
+      expect(
+        interval.next(DateTime(2026, 10, 1, 8, 30)),
+        DateTime(2026, 10, 4, 8, 30),
+      );
+      const weekdays = RecurrenceRule(
+        RecurrenceKind.weekdays,
+        weekdays: [1, 3, 5],
+      );
+      expect(
+        weekdays.next(DateTime(2026, 10, 1, 8, 30)),
+        DateTime(2026, 10, 2, 8, 30),
+      );
+      expect(
+        weekdays.next(DateTime(2026, 10, 2, 8, 30)),
+        DateTime(2026, 10, 5, 8, 30),
+      );
     });
   });
 
@@ -82,8 +112,11 @@ void main() {
         now: now,
       );
       expect(stale.balanceStale, isTrue);
-      final none =
-          RealityCheck.compute(accounts: const [], bills: const [], now: now);
+      final none = RealityCheck.compute(
+        accounts: const [],
+        bills: const [],
+        now: now,
+      );
       expect(none.hasAccounts, isFalse);
     });
 
@@ -125,7 +158,11 @@ void main() {
 
     test('tugas besok mengalahkan tugas jauh walau prioritas lebih rendah', () {
       final a = choose([
-        makeTask('far', due: DateTime(2026, 12, 1), priority: TaskPriority.urgent),
+        makeTask(
+          'far',
+          due: DateTime(2026, 12, 1),
+          priority: TaskPriority.urgent,
+        ),
         makeTask('soon', due: DateTime(2026, 10, 11)),
       ]);
       expect(a!.targetId, 'soon');
@@ -136,8 +173,10 @@ void main() {
     });
 
     test('Reschedule.shift mempertahankan jam; default 23:59', () {
-      expect(Reschedule.shift(DateTime(2026, 10, 1, 9, 30), now, 1),
-          DateTime(2026, 10, 11, 9, 30));
+      expect(
+        Reschedule.shift(DateTime(2026, 10, 1, 9, 30), now, 1),
+        DateTime(2026, 10, 11, 9, 30),
+      );
       expect(Reschedule.shift(null, now, 2), DateTime(2026, 10, 12, 23, 59));
     });
   });

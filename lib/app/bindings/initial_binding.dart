@@ -56,32 +56,53 @@ class InitialBinding extends Bindings {
     Get.put<ReminderCoordinator>(coordinator, permanent: true);
 
     Get.put<SearchSavedItems>(SearchSavedItems(savedItems), permanent: true);
-    Get.put<SaveSavedItem>(SaveSavedItem(savedItems, coordinator),
-        permanent: true);
-    Get.put<ArchiveSavedItem>(ArchiveSavedItem(savedItems, coordinator),
-        permanent: true);
-    Get.put<DeleteSavedItem>(DeleteSavedItem(savedItems, coordinator),
-        permanent: true);
+    Get.put<SaveSavedItem>(
+      SaveSavedItem(savedItems, coordinator),
+      permanent: true,
+    );
+    Get.put<ArchiveSavedItem>(
+      ArchiveSavedItem(savedItems, coordinator),
+      permanent: true,
+    );
+    Get.put<DeleteSavedItem>(
+      DeleteSavedItem(savedItems, coordinator),
+      permanent: true,
+    );
     Get.put<SaveTask>(SaveTask(tasks, coordinator), permanent: true);
-    Get.put<ChangeTaskStatus>(ChangeTaskStatus(tasks, reminders, coordinator),
-        permanent: true);
-    Get.put<RescheduleTask>(RescheduleTask(tasks, reminders, coordinator),
-        permanent: true);
+    Get.put<ChangeTaskStatus>(
+      ChangeTaskStatus(tasks, reminders, coordinator),
+      permanent: true,
+    );
+    Get.put<RescheduleTask>(
+      RescheduleTask(tasks, reminders, coordinator),
+      permanent: true,
+    );
     Get.put<DeleteTask>(DeleteTask(tasks, coordinator), permanent: true);
     Get.put<SaveEvent>(SaveEvent(events, coordinator), permanent: true);
     Get.put<DeleteEvent>(DeleteEvent(events, coordinator), permanent: true);
     Get.put<SaveBill>(SaveBill(finance, coordinator), permanent: true);
-    Get.put<MarkBillPaid>(MarkBillPaid(finance, reminders, coordinator),
-        permanent: true);
+    Get.put<MarkBillPaid>(
+      MarkBillPaid(finance, reminders, coordinator),
+      permanent: true,
+    );
     Get.put<DeleteBill>(DeleteBill(finance, coordinator), permanent: true);
     Get.put<SaveRoutine>(SaveRoutine(routines, coordinator), permanent: true);
-    Get.put<CompleteRoutine>(CompleteRoutine(routines, reminders, coordinator),
-        permanent: true);
-    Get.put<SkipRoutine>(SkipRoutine(routines, reminders, coordinator),
-        permanent: true);
-    Get.put<DeleteRoutine>(DeleteRoutine(routines, coordinator),
-        permanent: true);
-    Get.put<SearchAll>(SearchAll(savedItems, tasks, events, finance), permanent: true);
+    Get.put<CompleteRoutine>(
+      CompleteRoutine(routines, reminders, coordinator),
+      permanent: true,
+    );
+    Get.put<SkipRoutine>(
+      SkipRoutine(routines, reminders, coordinator),
+      permanent: true,
+    );
+    Get.put<DeleteRoutine>(
+      DeleteRoutine(routines, coordinator),
+      permanent: true,
+    );
+    Get.put<SearchAll>(
+      SearchAll(savedItems, tasks, events, finance),
+      permanent: true,
+    );
     Get.put<GetDashboard>(
       GetDashboard(
         events: events,
@@ -96,7 +117,13 @@ class InitialBinding extends Bindings {
 
     // Setelah restore, jadwal notifikasi OS harus mengikuti data yang baru.
     Get.put<BackupService>(
-      BackupService(db, onRestored: coordinator.reconcileAll),
+      BackupService(
+        db,
+        onRestored: () async {
+          await routines.migrateToRecurringTasks();
+          await coordinator.reconcileAll();
+        },
+      ),
       permanent: true,
     );
     Get.put<ShareIntakeService>(ShareIntakeService(), permanent: true);

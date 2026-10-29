@@ -196,6 +196,19 @@ class BackupSchema {
     },
   };
 
+  /// Skema v4 menambahkan aturan pengulangan ke agenda.
+  static final Map<String, Map<String, _Col>> v4 = {
+    ...v3,
+    'events': {
+      ...v3['events']!,
+      'recurrence_rule': const _Col.text(nullable: true),
+    },
+    'routines': {
+      ...v3['routines']!,
+      'migrated_task_id': const _Col.text(nullable: true),
+    },
+  };
+
   /// SHA-256 dari `data` yang di-encode kompak. Dipakai saat ekspor dan impor.
   static String checksumOf(Object? data) =>
       sha256.convert(utf8.encode(jsonEncode(data))).toString();
@@ -300,6 +313,14 @@ class BackupValidator {
         row['affects_balance'] = 0;
       }
     }
+    if (version < 4) {
+      for (final row in data['events']!) {
+        row['recurrence_rule'] = null;
+      }
+      for (final row in data['routines']!) {
+        row['migrated_task_id'] = null;
+      }
+    }
 
     return ParsedBackup(
       schemaVersion: version,
@@ -313,6 +334,7 @@ class BackupValidator {
     if (version == 1) return BackupSchema.v1;
     if (version == 2) return BackupSchema.v2;
     if (version == 3) return BackupSchema.v3;
+    if (version == 4) return BackupSchema.v4;
     throw BackupFormatException('Versi skema backup $version tidak didukung.');
   }
 

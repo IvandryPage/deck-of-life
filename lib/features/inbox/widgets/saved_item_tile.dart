@@ -12,13 +12,13 @@ class SavedItemTile extends StatelessWidget {
   final VoidCallback onTap;
 
   static IconData iconFor(SavedItemType t) => switch (t) {
-        SavedItemType.link => Icons.link,
-        SavedItemType.message => Icons.chat_bubble_outline,
-        SavedItemType.note => Icons.sticky_note_2_outlined,
-        SavedItemType.fileReference => Icons.insert_drive_file_outlined,
-        SavedItemType.imageReference => Icons.image_outlined,
-        SavedItemType.other => Icons.bookmark_border,
-      };
+    SavedItemType.link => Icons.link,
+    SavedItemType.message => Icons.chat_bubble_outline,
+    SavedItemType.note => Icons.sticky_note_2_outlined,
+    SavedItemType.fileReference => Icons.insert_drive_file_outlined,
+    SavedItemType.imageReference => Icons.image_outlined,
+    SavedItemType.other => Icons.bookmark_border,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -41,14 +41,35 @@ class SavedItemTile extends StatelessWidget {
             Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
           Text(
             meta.join(' · '),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
-      trailing: item.needsReview
-          ? const StatusTag('Perlu diperiksa', icon: Icons.help_outline)
-          : null,
+      trailing: Wrap(
+        spacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (item.sourceApp == 'share_sheet' && item.needsReview)
+            Tooltip(
+              message: 'New',
+              child: Semantics(
+                label: 'New note',
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          if (item.needsReview)
+            const StatusTag('Perlu diperiksa', icon: Icons.help_outline),
+        ],
+      ),
     );
   }
 }

@@ -61,10 +61,10 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
       Get.find<ReminderRepository>()
           .getForTarget(ReminderTargetType.savedItem, e.id)
           .then((r) {
-        if (mounted && r != null && r.isEnabled) {
-          setState(() => _reminder = r.remindAt);
-        }
-      });
+            if (mounted && r != null && r.isEnabled) {
+              setState(() => _reminder = r.remindAt);
+            }
+          });
     } else if (_args.text != null) {
       _content.text = _args.text!;
       final s = CaptureSuggester.suggest(
@@ -82,7 +82,15 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
 
   @override
   void dispose() {
-    for (final c in [_content, _title, _url, _sourceLabel, _course, _group, _context]) {
+    for (final c in [
+      _content,
+      _title,
+      _url,
+      _sourceLabel,
+      _course,
+      _group,
+      _context,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -92,7 +100,9 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
     final content = _content.text.trim();
     final title = _title.text.trim();
     if (content.isEmpty && title.isEmpty) {
-      setState(() => _contentError = 'Isi catatan atau judul tidak boleh kosong');
+      setState(
+        () => _contentError = 'Isi catatan atau judul tidak boleh kosong',
+      );
       return;
     }
     setState(() {
@@ -116,7 +126,7 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
       title: finalTitle,
       contentText: content,
       itemType: type,
-      sourceApp: e?.sourceApp,
+      sourceApp: e?.sourceApp ?? (_args.fromShare ? 'share_sheet' : null),
       sourceLabel: _sourceLabel.text,
       sourceUrl: url,
       sourceLocation: e?.sourceLocation,
@@ -124,11 +134,12 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
       groupName: _group.text,
       contextNote: _context.text,
       // Judul sementara selalu perlu diperiksa.
-      reviewStatus: (_needsReview || suggestion.titleIsPlaceholder && title.isEmpty)
+      reviewStatus:
+          (_needsReview || suggestion.titleIsPlaceholder && title.isEmpty)
           ? ReviewStatus.needsReview
           : (e?.reviewStatus == ReviewStatus.archived
-              ? ReviewStatus.archived
-              : ReviewStatus.reviewed),
+                ? ReviewStatus.archived
+                : ReviewStatus.reviewed),
       isFavorite: e?.isFavorite ?? false,
       createdAt: e?.createdAt ?? now,
       updatedAt: now,
@@ -138,8 +149,10 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
     try {
       if (e == null && _args.fromShare) {
         // Share berulang dari sumber yang sama tidak menumpuk duplikat.
-        final dup = await Get.find<SavedItemRepository>()
-            .findDuplicate(url: url, content: content);
+        final dup = await Get.find<SavedItemRepository>().findDuplicate(
+          url: url,
+          content: content,
+        );
         if (dup != null) {
           Get.back<String>(result: dup.id);
           AppToast.show('Sudah tersimpan: "${dup.title}"');
@@ -167,15 +180,23 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
   /// Setelah menyimpan dari Share Sheet, kembali ke aplikasi sumber.
   Future<void> _maybeClose() async {
     if (!_args.fromShare) return;
-    final v = await Get.find<SettingsRepository>().get(SettingKeys.closeAfterShare);
+    final v = await Get.find<SettingsRepository>().get(
+      SettingKeys.closeAfterShare,
+    );
     if (v != '0') await SystemNavigator.pop();
   }
 
   bool get _hasAdvanced =>
       _typeTouched ||
       _reminder != null ||
-      [_title, _url, _sourceLabel, _course, _group, _context]
-          .any((c) => c.text.trim().isNotEmpty);
+      [
+        _title,
+        _url,
+        _sourceLabel,
+        _course,
+        _group,
+        _context,
+      ].any((c) => c.text.trim().isNotEmpty);
 
   late final bool _openAdvanced = _hasAdvanced;
 
@@ -192,8 +213,8 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
             'Nama grup atau pengirim tidak selalu ikut terkirim dari aplikasi sumber; '
             'tambahkan di Opsi lanjutan bila perlu.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         TextField(
           controller: _content,
@@ -243,7 +264,8 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
                 labelText: 'Tautan sumber',
-                helperText: 'Hanya menyimpan tautannya, bukan isi berkas di baliknya',
+                helperText:
+                    'Hanya menyimpan tautannya, bukan isi berkas di baliknya',
               ),
             ),
             TextField(
@@ -255,7 +277,9 @@ class _SavedItemFormPageState extends State<SavedItemFormPage> {
             ),
             TextField(
               controller: _course,
-              decoration: const InputDecoration(labelText: 'Mata kuliah / konteks'),
+              decoration: const InputDecoration(
+                labelText: 'Mata kuliah / konteks',
+              ),
             ),
             TextField(
               controller: _group,

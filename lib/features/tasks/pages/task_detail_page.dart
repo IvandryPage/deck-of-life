@@ -9,6 +9,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../domain/entities/entities.dart';
 import '../../../domain/entities/enums.dart';
+import '../../../domain/entities/recurrence.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/usecases.dart';
 import '../task_args.dart';
@@ -23,9 +24,11 @@ class TaskDetailPage extends StatefulWidget {
 class _TaskDetailPageState extends State<TaskDetailPage> {
   late final String _id;
   final _tasks = Get.find<TaskRepository>();
+  final _routines = Get.find<RoutineRepository>();
 
   Task? _task;
   List<SavedItem> _items = const [];
+  List<RoutineLog> _routineHistory = const [];
   Reminder? _reminder;
   bool _loading = true;
   Worker? _worker;
@@ -50,12 +53,18 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       final items = t == null ? <SavedItem>[] : await _tasks.savedItemsFor(_id);
       final r = t == null
           ? null
-          : await Get.find<ReminderRepository>()
-              .getForTarget(ReminderTargetType.task, _id);
+          : await Get.find<ReminderRepository>().getForTarget(
+              ReminderTargetType.task,
+              _id,
+            );
+      final routineHistory = t == null
+          ? <RoutineLog>[]
+          : await _routines.logsForTask(_id);
       if (!mounted) return;
       setState(() {
         _task = t;
         _items = items;
+        _routineHistory = routineHistory;
         _reminder = r;
         _loading = false;
       });
@@ -89,7 +98,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     if (task == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const EmptyState(icon: Icons.search_off, title: 'Tugas tidak ditemukan'),
+        body: const EmptyState(
+          icon: Icons.search_off,
+          title: 'Tugas tidak ditemukan',
+        ),
       );
     }
     final theme = Theme.of(context);
@@ -135,7 +147,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             itemBuilder: (_) => [
               for (final s in TaskStatus.values)
                 if (s != task.status)
-                  PopupMenuItem(value: s.value, child: Text('Ubah ke: ${s.label}')),
+                  PopupMenuItem(
+                    value: s.value,
+                    child: Text('Ubah ke: ${s.label}'),
+                  ),
               const PopupMenuItem(value: 'delete', child: Text('Hapus')),
             ],
           ),
@@ -150,9 +165,18 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             spacing: 6,
             runSpacing: 6,
             children: [
-              StatusTag(task.status.label,
-                  icon: task.status == TaskStatus.needsReview ? Icons.help_outline : null),
-              if (overdue) const StatusTag('Terlambat', icon: Icons.warning_amber, warning: true),
+              StatusTag(
+                task.status.label,
+                icon: task.status == TaskStatus.needsReview
+                    ? Icons.help_outline
+                    : null,
+              ),
+              if (overdue)
+                const StatusTag(
+                  'Terlambat',
+                  icon: Icons.warning_amber,
+                  warning: true,
+                ),
               StatusTag('Prioritas ${task.priority.label.toLowerCase()}'),
               if (task.courseName != null) StatusTag(task.courseName!),
             ],
@@ -164,6 +188,12 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 ? 'Belum diketahui'
                 : '${Formatters.dateTime(task.dueAt!)} (${DueLabel.of(task.dueAt, now: now)})',
           ),
+          if (task.recurrenceRule != null)
+            KeyValueRow(
+              'Ulangi',
+              RecurrenceRule.tryParse(task.recurrenceRule)?.label ??
+                  'Aturan berulang',
+            ),
           if (_reminder != null && _reminder!.isEnabled)
             KeyValueRow(
               'Pengingat',
@@ -173,15 +203,29 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             ),
           if (task.estimatedMinutes != null)
             KeyValueRow('Perkiraan durasi', '${task.estimatedMinutes} menit'),
-          if (task.groupName != null) KeyValueRow('Kelas / grup', task.groupName!),
+          if (task.groupName != null)
+            KeyValueRow('Kelas / grup', task.groupName!),
           KeyValueRow('Jenis', task.taskKind.label),
-          if (task.nextAction != null) KeyValueRow('Langkah berikutnya', task.nextAction!),
+          if (task.nextAction != null)
+            KeyValueRow('Langkah berikutnya', task.nextAction!),
           if (task.instructionSource != null)
             KeyValueRow('Sumber instruksi', task.instructionSource!),
           if (task.instructionLocation != null)
             KeyValueRow('Lokasi instruksi', task.instructionLocation!),
           if (task.completedAt != null)
             KeyValueRow('Selesai', Formatters.dateTime(task.completedAt!)),
+          if (_routineHistory.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('Riwayat rutinitas', style: theme.textTheme.titleMedium),
+            for (final log in _routineHistory)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: const Icon(Icons.check_circle_outline),
+                title: Text(Formatters.dateTime(log.completedAt)),
+                subtitle: log.note == null ? null : Text(log.note!),
+              ),
+          ],
           if (task.description.isNotEmpty) ...[
             const SizedBox(height: 16),
             SelectableText(task.description, style: theme.textTheme.bodyLarge),
@@ -206,8 +250,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'Belum ada item tersimpan yang terhubung. Hubungkan dari halaman detail item.',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           for (final i in _items)

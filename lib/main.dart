@@ -5,6 +5,7 @@ import 'app/app.dart';
 import 'core/database/app_database.dart';
 import 'core/errors/app_exception.dart';
 import 'core/notifications/notification_service.dart';
+import 'data/repositories/routine_repository_impl.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,7 @@ Future<void> main() async {
   final AppDatabase db;
   try {
     db = await AppDatabase.open();
+    await RoutineRepositoryImpl(db).migrateToRecurringTasks();
   } on AppException catch (e) {
     runApp(StartupErrorApp(message: e.message));
     return;

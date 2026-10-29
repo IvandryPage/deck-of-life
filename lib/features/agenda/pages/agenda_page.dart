@@ -44,7 +44,9 @@ class AgendaPage extends GetView<AgendaController> {
         // Kelompokkan per hari kalender lokal.
         final days = <DateTime, List<Event>>{};
         for (final e in events) {
-          days.putIfAbsent(DateTimeUtils.startOfDay(e.startsAt), () => []).add(e);
+          days
+              .putIfAbsent(DateTimeUtils.startOfDay(e.startsAt), () => [])
+              .add(e);
         }
         final keys = days.keys.toList()..sort();
         final today = DateTimeUtils.startOfDay(DateTime.now());
@@ -66,7 +68,7 @@ class AgendaPage extends GetView<AgendaController> {
                 ),
                 for (final e in days[day]!)
                   Dismissible(
-                    key: ValueKey(e.id),
+                    key: ValueKey('${e.id}-${e.startsAt.toIso8601String()}'),
                     direction: DismissDirection.endToStart,
                     background: Container(
                       color: Theme.of(context).colorScheme.errorContainer,
@@ -77,7 +79,9 @@ class AgendaPage extends GetView<AgendaController> {
                     confirmDismiss: (_) => confirmDialog(
                       context,
                       title: 'Hapus agenda?',
-                      message: '"${e.title}" dan pengingatnya akan dihapus.',
+                      message: e.isRecurring
+                          ? 'Seluruh rangkaian "${e.title}" dan pengingatnya akan dihapus.'
+                          : '"${e.title}" dan pengingatnya akan dihapus.',
                       confirmLabel: 'Hapus',
                       destructive: true,
                     ),
@@ -91,11 +95,15 @@ class AgendaPage extends GetView<AgendaController> {
                         ),
                       ),
                       title: Text(e.title),
-                      subtitle: Text([
-                        e.eventType.label,
-                        if (e.endsAt != null) 's.d. ${Formatters.time(e.endsAt!)}',
-                        if (e.location != null) e.location!,
-                      ].join(' · ')),
+                      subtitle: Text(
+                        [
+                          e.eventType.label,
+                          if (e.isRecurring) 'Berulang',
+                          if (e.endsAt != null)
+                            's.d. ${Formatters.time(e.endsAt!)}',
+                          if (e.location != null) e.location!,
+                        ].join(' · '),
+                      ),
                       onTap: () =>
                           Get.toNamed<dynamic>(Routes.eventForm, arguments: e),
                     ),
