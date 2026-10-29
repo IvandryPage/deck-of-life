@@ -213,10 +213,7 @@ class TaskOrdering {
       tasks.toList()..sort((a, b) => compare(a, b, now));
 
   /// Hingga [limit] tugas aktif BERTENGGAT: overdue dulu, lalu `due_at` terdekat.
-  static List<Task> nearestDeadlines(
-    Iterable<Task> tasks, {
-    int limit = 3,
-  }) {
+  static List<Task> nearestDeadlines(Iterable<Task> tasks, {int limit = 3}) {
     final withDue = tasks.where((t) => t.isActive && t.dueAt != null).toList()
       ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
     return withDue.take(limit).toList();
@@ -309,8 +306,14 @@ class RealityCheck {
       }
     }
 
-    final horizonEnd =
-        DateTime(now.year, now.month, now.day + horizonDays, 23, 59, 59);
+    final horizonEnd = DateTime(
+      now.year,
+      now.month,
+      now.day + horizonDays,
+      23,
+      59,
+      59,
+    );
     var unpaid = 0, overdue = 0, soon = 0, later = 0, overdueCount = 0;
     Bill? next;
     for (final b in bills) {
@@ -340,9 +343,10 @@ class RealityCheck {
       lastConfirmedAt: latest,
       oldestConfirmedAt: oldest,
       balanceStale:
-          oldest != null && DateTime(now.year, now.month, now.day).difference(
-                DateTime(oldest.year, oldest.month, oldest.day),
-              ).inDays >=
+          oldest != null &&
+          DateTime(now.year, now.month, now.day)
+                  .difference(DateTime(oldest.year, oldest.month, oldest.day))
+                  .inDays >=
               7,
       unpaidTotal: unpaid,
       overdueTotal: overdue,
@@ -362,7 +366,15 @@ class RealityCheck {
 // Tindakan berikutnya (aturan deterministik, selalu disertai alasan)
 // ---------------------------------------------------------------------------
 
-enum NextActionKind { overdueTask, reviewTask, task, bill, reviewItems, routine, resume }
+enum NextActionKind {
+  overdueTask,
+  reviewTask,
+  task,
+  bill,
+  reviewItems,
+  routine,
+  resume,
+}
 
 class NextAction {
   const NextAction({
@@ -541,6 +553,7 @@ class DashboardData {
   const DashboardData({
     required this.todayEvents,
     required this.nearestDeadlines,
+    required this.nearestBills,
     required this.overdueTasks,
     required this.reality,
     required this.needsReviewItemCount,
@@ -555,6 +568,7 @@ class DashboardData {
 
   /// Maksimal tiga tugas aktif bertenggat terdekat (termasuk yang terlambat).
   final List<Task> nearestDeadlines;
+  final List<Bill> nearestBills;
 
   /// Semua tugas aktif yang sudah lewat deadline, paling lama terlewat dulu.
   final List<Task> overdueTasks;

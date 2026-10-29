@@ -17,6 +17,7 @@ class InboxController extends GetxController {
 
   final RxList<SavedItem> items = <SavedItem>[].obs;
   final Rx<InboxFilter> filter = InboxFilter.all.obs;
+  final RxString query = ''.obs;
   final RxBool isLoading = true.obs;
   final RxnString errorMessage = RxnString();
 
@@ -26,6 +27,11 @@ class InboxController extends GetxController {
     load();
     ever<int>(_revision.revision, (_) => load());
     ever<InboxFilter>(filter, (_) => load());
+    debounce<String>(
+      query,
+      (_) => load(),
+      time: const Duration(milliseconds: 250),
+    );
   }
 
   void setFilter(InboxFilter value) => filter.value = value;
@@ -34,15 +40,17 @@ class InboxController extends GetxController {
     errorMessage.value = null;
     try {
       final f = filter.value;
-      items.assignAll(await _search(
-        '',
-        reviewStatus: switch (f) {
-          InboxFilter.needsReview => ReviewStatus.needsReview,
-          InboxFilter.archived => ReviewStatus.archived,
-          InboxFilter.all => null,
-        },
-        limit: 200,
-      ));
+      items.assignAll(
+        await _search(
+          query.value,
+          reviewStatus: switch (f) {
+            InboxFilter.needsReview => ReviewStatus.needsReview,
+            InboxFilter.archived => ReviewStatus.archived,
+            InboxFilter.all => null,
+          },
+          limit: 200,
+        ),
+      );
     } catch (e, st) {
       AppLog.error('inbox.load', e, st);
       errorMessage.value = messageOf(e);

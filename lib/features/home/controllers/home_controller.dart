@@ -13,8 +13,14 @@ import '../../../domain/usecases/capture.dart';
 import '../../../domain/usecases/usecases.dart';
 
 class HomeController extends GetxController with DataMutations {
-  HomeController(this._getDashboard, this._revision, this._saveItem,
-      this._savedItems, this._changeStatus, this._reschedule);
+  HomeController(
+    this._getDashboard,
+    this._revision,
+    this._saveItem,
+    this._savedItems,
+    this._changeStatus,
+    this._reschedule,
+  );
 
   final SaveSavedItem _saveItem;
   final SavedItemRepository _savedItems;
@@ -25,6 +31,8 @@ class HomeController extends GetxController with DataMutations {
   final DataRevision _revision;
 
   final Rxn<DashboardData> data = Rxn<DashboardData>();
+  final RxList<SavedItem> recentNotes = <SavedItem>[].obs;
+  final RxString notesQuery = ''.obs;
   final RxBool isLoading = true.obs;
   final RxnString errorMessage = RxnString();
 
@@ -33,6 +41,11 @@ class HomeController extends GetxController with DataMutations {
     super.onInit();
     load();
     ever<int>(_revision.revision, (_) => load());
+    debounce<String>(
+      notesQuery,
+      (query) => searchRecentNotes(query),
+      time: const Duration(milliseconds: 250),
+    );
   }
 
   Future<void> load() async {
@@ -41,11 +54,22 @@ class HomeController extends GetxController with DataMutations {
     errorMessage.value = null;
     try {
       data.value = await _getDashboard();
+      await searchRecentNotes(notesQuery.value);
     } catch (e, st) {
       AppLog.error('home.load', e, st);
       errorMessage.value = messageOf(e);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> searchRecentNotes(String query) async {
+    try {
+      recentNotes.assignAll(await _savedItems.search(query, limit: 3));
+    } catch (e, st) {
+      AppLog.error('home.search_notes', e, st);
+      errorMessage.value = messageOf(e);
+      AppToast.show(messageOf(e), isError: true);
     }
   }
 
@@ -61,25 +85,22 @@ class HomeController extends GetxController with DataMutations {
       return true;
     }
     final now = DateTime.now();
-    return mutate(
-      () async {
-        await _saveItem(
-          SavedItem(
-            id: const Uuid().v4(),
-            title: sug.title,
-            contentText: text,
-            itemType: sug.type,
-            sourceUrl: sug.url,
-            reviewStatus: ReviewStatus.needsReview,
-            isFavorite: false,
-            createdAt: now,
-            updatedAt: now,
-          ),
-          isNew: true,
-        );
-      },
-      success: 'Tersimpan ke Kotak Masuk',
-    );
+    return mutate(() async {
+      await _saveItem(
+        SavedItem(
+          id: const Uuid().v4(),
+          title: sug.title,
+          contentText: text,
+          itemType: sug.type,
+          sourceUrl: sug.url,
+          reviewStatus: ReviewStatus.needsReview,
+          isFavorite: false,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        isNew: true,
+      );
+    }, success: 'Tersimpan ke Kotak Masuk');
   }
 
   Future<void> completeTask(String id) async {
@@ -97,6 +118,7 @@ class HomeController extends GetxController with DataMutations {
       mutate(() => _reschedule(id, days), success: 'Tenggat digeser');
 
   Future<bool> dropTask(String id) => mutate(
-      () => _changeStatus(id, TaskStatus.cancelled),
-      success: 'Tugas dibatalkan');
+    () => _changeStatus(id, TaskStatus.cancelled),
+    success: 'Tugas dibatalkan',
+  );
 }

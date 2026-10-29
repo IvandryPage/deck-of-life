@@ -15,197 +15,292 @@ import '../../tasks/pages/tasks_page.dart';
 import '../../tasks/task_args.dart';
 import '../controllers/shell_controller.dart';
 
-/// Kerangka dengan bottom navigation. Setiap tab mempertahankan state dan posisi
-/// scroll (IndexedStack). Lencana pada ikon menampilkan informasi yang menuntut
-/// perhatian (tugas terlambat, tagihan terlambat, item perlu diperiksa, agenda hari ini).
 class ShellPage extends GetView<ShellController> {
   const ShellPage({super.key});
 
   static const List<String> _titles = [
-    'Beranda',
-    'Keuangan',
-    'Tugas',
-    'Kalender',
-    'Informasi',
+    'Home',
+    'Calendar',
+    'Tasks',
+    'Money',
+    'Notes',
   ];
 
-  static String _tabTitle(int index) =>
-      (index >= 0 && index < _titles.length) ? _titles[index] : _titles[0];
-
   @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final i = controller.tab.value;
-      return Scaffold(
-        appBar: i == ShellController.tabHome
-            ? null // Beranda punya header sendiri yang kontekstual.
-            : AppBar(
-                title: Text(_tabTitle(i)),
-                actions: _actions(),
+  Widget build(BuildContext context) => Obx(() {
+    final index = controller.tab.value;
+    return Scaffold(
+      body: SafeArea(
+        child: Row(
+          children: [
+            _NavigationRail(index: index, onSelected: controller.goTo),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: Scaffold(
+                appBar: index == ShellController.tabHome
+                    ? null
+                    : AppBar(
+                        title: Text(_titles[index]),
+                        actions: [
+                          IconButton(
+                            tooltip: 'Search',
+                            icon: const Icon(Icons.search),
+                            onPressed: () =>
+                                Get.toNamed<dynamic>(Routes.search),
+                          ),
+                        ],
+                      ),
+                body: IndexedStack(
+                  index: index,
+                  children: const [
+                    HomePage(),
+                    CalendarPage(),
+                    TasksPage(),
+                    FinancePage(),
+                    InboxPage(),
+                  ],
+                ),
+                floatingActionButton: _QuickAddButton(activeTab: index),
               ),
-        body: SafeArea(
-          top: i == ShellController.tabHome,
-          bottom: false,
-          child: IndexedStack(
-            index: i,
-            children: const [
-              HomePage(),
-              FinancePage(),
-              TasksPage(),
-              CalendarPage(),
-              InboxPage(),
-            ],
-          ),
+            ),
+          ],
         ),
-        floatingActionButton: _fab(context, i),
-        bottomNavigationBar: _NavBar(
-          index: i,
-          onSelected: (v) => controller.tab.value = v,
-        ),
-      );
-    });
-  }
-
-  static List<Widget> _actions() => [
-        IconButton(
-          tooltip: 'Cari',
-          icon: const Icon(Icons.search),
-          onPressed: () => Get.toNamed<dynamic>(Routes.search),
-        ),
-        const _MoreMenu(),
-      ];
-
-  Widget? _fab(BuildContext context, int tab) {
-    switch (tab) {
-      case ShellController.tabFinance:
-        return FloatingActionButton.extended(
-          onPressed: () => showTransactionSheet(
-              context, Get.find<FinanceController>()),
-          icon: const Icon(Icons.add),
-          label: const Text('Transaksi'),
-        );
-      case ShellController.tabTask:
-        return FloatingActionButton.extended(
-          onPressed: () => Get.toNamed<dynamic>(
-            Routes.taskForm,
-            arguments: const TaskFormArgs(),
-          ),
-          icon: const Icon(Icons.add),
-          label: const Text('Tugas baru'),
-        );
-      case ShellController.tabCalendar:
-        return FloatingActionButton.extended(
-          onPressed: () => Get.toNamed<dynamic>(Routes.eventForm),
-          icon: const Icon(Icons.add),
-          label: const Text('Agenda'),
-        );
-      case ShellController.tabInfo:
-        return FloatingActionButton.extended(
-          onPressed: () => Get.toNamed<dynamic>(
-            Routes.savedItemForm,
-            arguments: const SavedItemFormArgs(),
-          ),
-          icon: const Icon(Icons.add),
-          label: const Text('Simpan info'),
-        );
-      default:
-        return null; // Beranda: aksi cepat ada di halamannya.
-    }
-  }
+      ),
+    );
+  });
 }
 
-class _MoreMenu extends StatelessWidget {
-  const _MoreMenu();
-
-  @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
-        tooltip: 'Menu lainnya',
-        onSelected: (route) => Get.toNamed<dynamic>(route),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: Routes.routines, child: Text('Rutinitas')),
-          PopupMenuItem(value: Routes.settings, child: Text('Pengaturan')),
-        ],
-      );
-}
-
-class _NavBar extends GetView<HomeController> {
-  const _NavBar({required this.index, required this.onSelected});
+class _NavigationRail extends GetView<HomeController> {
+  const _NavigationRail({required this.index, required this.onSelected});
 
   final int index;
   final ValueChanged<int> onSelected;
 
+  static const _icons = [
+    Icons.home_outlined,
+    Icons.calendar_month_outlined,
+    Icons.checklist_outlined,
+    Icons.account_balance_wallet_outlined,
+    Icons.sticky_note_2_outlined,
+  ];
+  static const _selectedIcons = [
+    Icons.home,
+    Icons.calendar_month,
+    Icons.checklist,
+    Icons.account_balance_wallet,
+    Icons.sticky_note_2,
+  ];
+  static const _labels = ['Home', 'Cal', 'Tasks', 'Money', 'Notes'];
+
   @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      // Semua Rx dibaca di dalam builder.
-      final d = controller.data.value;
-      final overdueTasks = d?.overdueTaskCount ?? 0;
-      final overdueBills = d?.overdueBillCount ?? 0;
-      final review = d?.needsReviewItemCount ?? 0;
-      final today = d?.todayEvents.length ?? 0;
-
-      Widget icon(IconData base, int count, String what) => _Badged(
-            icon: base,
-            count: count,
-            label: what,
-          );
-
-      return NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: onSelected,
-        animationDuration: AppMotion.of(context, AppMotion.standard),
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Beranda',
+  Widget build(BuildContext context) => Obx(() {
+    final data = controller.data.value;
+    final counts = [
+      0,
+      data?.todayEvents.length ?? 0,
+      data?.overdueTaskCount ?? 0,
+      data?.overdueBillCount ?? 0,
+      data?.needsReviewItemCount ?? 0,
+    ];
+    return SizedBox(
+      width: 52,
+      child: Column(
+        children: [
+          for (var i = 0; i < _labels.length; i++)
+            Expanded(
+              child: _RailDestination(
+                label: _labels[i],
+                count: counts[i],
+                icon: i == index ? _selectedIcons[i] : _icons[i],
+                selected: i == index,
+                onTap: () => onSelected(i),
+              ),
+            ),
+          const SizedBox(height: AppSpace.sm),
+          IconButton(
+            tooltip: 'Settings',
+            onPressed: () => Get.toNamed<dynamic>(Routes.settings),
+            icon: const Icon(Icons.settings_outlined),
           ),
-          NavigationDestination(
-            icon: icon(Icons.account_balance_wallet_outlined, overdueBills,
-                'tagihan terlambat'),
-            selectedIcon: icon(Icons.account_balance_wallet, overdueBills,
-                'tagihan terlambat'),
-            label: 'Keuangan',
-          ),
-          NavigationDestination(
-            icon: icon(Icons.checklist_outlined, overdueTasks, 'tugas terlambat'),
-            selectedIcon: icon(Icons.checklist, overdueTasks, 'tugas terlambat'),
-            label: 'Tugas',
-          ),
-          NavigationDestination(
-            icon: icon(Icons.calendar_month_outlined, today, 'agenda hari ini'),
-            selectedIcon: icon(Icons.calendar_month, today, 'agenda hari ini'),
-            label: 'Kalender',
-          ),
-          NavigationDestination(
-            icon: icon(Icons.inbox_outlined, review, 'perlu diperiksa'),
-            selectedIcon: icon(Icons.inbox, review, 'perlu diperiksa'),
-            label: 'Informasi',
-          ),
+          const SizedBox(height: AppSpace.sm),
         ],
-      );
-    });
-  }
+      ),
+    );
+  });
 }
 
-/// Ikon dengan lencana angka. Angka juga masuk ke label aksesibilitas,
-/// sehingga informasinya tidak hanya bergantung pada warna lencana.
-class _Badged extends StatelessWidget {
-  const _Badged({required this.icon, required this.count, required this.label});
+class _RailDestination extends StatelessWidget {
+  const _RailDestination({
+    required this.label,
+    required this.count,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
 
-  final IconData icon;
-  final int count;
   final String label;
+  final int count;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    if (count <= 0) return Icon(icon);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final visibleLabel = count > 0 ? '$label $count' : label;
     return Semantics(
-      label: '$count $label',
-      child: Badge(
-        label: Text(count > 99 ? '99+' : '$count'),
-        child: Icon(icon),
+      button: true,
+      selected: selected,
+      label: count > 0 ? '$label, $count items need attention' : label,
+      child: Tooltip(
+        message: count > 0 ? '$label · $count' : label,
+        child: InkWell(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: AppMotion.of(context, AppMotion.standard),
+            margin: const EdgeInsets.symmetric(
+              horizontal: 5,
+              vertical: AppSpace.xs,
+            ),
+            decoration: BoxDecoration(
+              color: selected ? colors.secondaryContainer : Colors.transparent,
+              borderRadius: AppRadius.control,
+              border: selected
+                  ? Border(left: BorderSide(color: colors.primary, width: 3))
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: AppSize.iconMd,
+                  color: selected
+                      ? colors.onSecondaryContainer
+                      : colors.onSurfaceVariant,
+                ),
+                const SizedBox(height: AppSpace.xs),
+                RotatedBox(
+                  quarterTurns: 3,
+                  child: Text(
+                    visibleLabel,
+                    maxLines: 1,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected
+                          ? colors.onSecondaryContainer
+                          : colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+}
+
+enum _QuickAction { note, task, event, transaction }
+
+class _QuickAddButton extends StatelessWidget {
+  const _QuickAddButton({required this.activeTab});
+
+  final int activeTab;
+
+  Future<void> _open(BuildContext context) async {
+    final actions = switch (activeTab) {
+      ShellController.tabCalendar => [
+        _QuickAction.event,
+        _QuickAction.task,
+        _QuickAction.note,
+        _QuickAction.transaction,
+      ],
+      ShellController.tabTask => [
+        _QuickAction.task,
+        _QuickAction.note,
+        _QuickAction.event,
+        _QuickAction.transaction,
+      ],
+      ShellController.tabFinance => [
+        _QuickAction.transaction,
+        _QuickAction.note,
+        _QuickAction.task,
+        _QuickAction.event,
+      ],
+      ShellController.tabNotes => [
+        _QuickAction.note,
+        _QuickAction.task,
+        _QuickAction.event,
+        _QuickAction.transaction,
+      ],
+      _ => [
+        _QuickAction.note,
+        _QuickAction.task,
+        _QuickAction.event,
+        _QuickAction.transaction,
+      ],
+    };
+    final selected = await showModalBottomSheet<_QuickAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final action in actions)
+              ListTile(
+                leading: Icon(_iconFor(action)),
+                title: Text(_labelFor(action)),
+                onTap: () => Navigator.pop(context, action),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !context.mounted) return;
+    switch (selected) {
+      case _QuickAction.note:
+        await Get.toNamed<dynamic>(
+          Routes.savedItemForm,
+          arguments: const SavedItemFormArgs(),
+        );
+        break;
+      case _QuickAction.task:
+        await Get.toNamed<dynamic>(
+          Routes.taskForm,
+          arguments: const TaskFormArgs(),
+        );
+        break;
+      case _QuickAction.event:
+        await Get.toNamed<dynamic>(Routes.eventForm);
+        break;
+      case _QuickAction.transaction:
+        await showTransactionSheet(context, Get.find<FinanceController>());
+        break;
+    }
+  }
+
+  static IconData _iconFor(_QuickAction action) => switch (action) {
+    _QuickAction.note => Icons.sticky_note_2_outlined,
+    _QuickAction.task => Icons.checklist,
+    _QuickAction.event => Icons.event_outlined,
+    _QuickAction.transaction => Icons.payments_outlined,
+  };
+
+  static String _labelFor(_QuickAction action) => switch (action) {
+    _QuickAction.note => 'Note',
+    _QuickAction.task => 'Task',
+    _QuickAction.event => 'Event',
+    _QuickAction.transaction => 'Transaction',
+  };
+
+  @override
+  Widget build(BuildContext context) => FloatingActionButton(
+    tooltip: 'Add',
+    onPressed: () => _open(context),
+    child: const Icon(Icons.add),
+  );
 }

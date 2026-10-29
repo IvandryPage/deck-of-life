@@ -14,19 +14,21 @@ class ShellController extends GetxController {
   final ReminderCoordinator _coordinator;
 
   static const int tabHome = 0;
-  static const int tabFinance = 1;
+  static const int tabCalendar = 1;
   static const int tabTask = 2;
-  static const int tabCalendar = 3;
-  static const int tabInfo = 4; // Informasi (Kotak masuk)
+  static const int tabFinance = 3;
+  static const int tabNotes = 4;
+  static const int tabInfo = tabNotes;
 
   final RxInt tab = 0.obs;
 
   /// Pindah tab; bila sedang di halaman dalam (detail/form), kembali ke shell dulu.
   void goTo(int index) {
-    if (index < tabHome || index > tabInfo) return;
+    if (index < tabHome || index > tabNotes) return;
     Get.until((r) => r.settings.name == Routes.shell || r.isFirst);
     tab.value = index;
   }
+
   StreamSubscription<SharePayload>? _sub;
 
   @override

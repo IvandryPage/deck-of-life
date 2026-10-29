@@ -382,7 +382,9 @@ class MarkBillPaid {
   Future<void> undo() async {
     final undo = _undo;
     if (undo == null) {
-      throw const ValidationException('Tidak ada pembayaran yang bisa diurungkan.');
+      throw const ValidationException(
+        'Tidak ada pembayaran yang bisa diurungkan.',
+      );
     }
     final reminderIds = await _finance.undoBillPayment(
       undo.billId,
@@ -697,6 +699,9 @@ class GetDashboard {
     return DashboardData(
       todayEvents: todayEvents,
       nearestDeadlines: nearest,
+      nearestBills: (List<Bill>.of(
+        unpaid,
+      )..sort((a, b) => a.dueAt.compareTo(b.dueAt))).take(3).toList(),
       overdueTasks: overdue,
       reality: reality,
       needsReviewItemCount: reviewItems,

@@ -20,6 +20,17 @@ class InboxPage extends GetView<InboxController> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            onChanged: (value) => controller.query.value = value,
+            decoration: const InputDecoration(
+              hintText: 'Search notes',
+              prefixIcon: Icon(Icons.search),
+              isDense: true,
+            ),
+          ),
+        ),
         Obx(
           () => SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -58,17 +69,17 @@ class InboxPage extends GetView<InboxController> {
                 title: f == InboxFilter.needsReview
                     ? 'Tidak ada yang perlu diperiksa'
                     : f == InboxFilter.archived
-                        ? 'Arsip kosong'
-                        : 'Belum ada informasi tersimpan',
+                    ? 'Arsip kosong'
+                    : 'Belum ada informasi tersimpan',
                 message: f == InboxFilter.all
                     ? 'Bagikan teks atau tautan dari aplikasi lain ke sini, atau ketuk "Simpan info". Tidak perlu mengisi semuanya.'
                     : null,
                 actionLabel: f == InboxFilter.all ? 'Simpan info' : null,
                 onAction: f == InboxFilter.all
                     ? () => Get.toNamed<dynamic>(
-                          Routes.savedItemForm,
-                          arguments: const SavedItemFormArgs(),
-                        )
+                        Routes.savedItemForm,
+                        arguments: const SavedItemFormArgs(),
+                      )
                     : null,
               );
             }
