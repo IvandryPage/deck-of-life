@@ -237,6 +237,21 @@ class FinanceRepositoryImpl implements FinanceRepository {
   });
 
   @override
+  Future<void> restoreTransactions(List<MoneyTransaction> transactions) =>
+      dbGuard(() async {
+        if (transactions.isEmpty) return;
+        await _db.raw.transaction((txn) async {
+          for (final entry in transactions) {
+            await txn.insert(
+              'transactions',
+              TransactionRow.toRow(entry)
+                ..['affects_balance'] = entry.affectsBalance ? 1 : 0,
+            );
+          }
+        });
+      });
+
+  @override
   Future<List<MoneyTransaction>> transfer({
     required String fromAccountId,
     required String toAccountId,
@@ -287,6 +302,77 @@ class FinanceRepositoryImpl implements FinanceRepository {
       }
     });
     return [outgoing, incoming];
+  });
+
+  @override
+  Future<void> updateTransfer({
+    required String transferId,
+    required String fromAccountId,
+    required String toAccountId,
+    required int amount,
+    required DateTime occurredAt,
+    String? note,
+  }) => dbGuard(() async {
+    if (amount <= 0) {
+      throw const ValidationException('Nominal harus lebih dari 0.');
+    }
+    if (fromAccountId == toAccountId) {
+      throw const ValidationException(
+        'Pilih dua wallet yang berbeda untuk transfer.',
+      );
+    }
+    await _db.raw.transaction((txn) async {
+      final rows = await txn.query(
+        'transactions',
+        where: 'transfer_id = ?',
+        whereArgs: [transferId],
+      );
+      final outgoing = rows
+          .where(
+            (row) => row['direction'] == TransactionDirection.expense.value,
+          )
+          .toList();
+      final incoming = rows
+          .where((row) => row['direction'] == TransactionDirection.income.value)
+          .toList();
+      if (rows.length != 2 || outgoing.length != 1 || incoming.length != 1) {
+        throw const ValidationException('Pasangan transfer tidak ditemukan.');
+      }
+
+      final accounts = await txn.query(
+        'accounts',
+        columns: ['id'],
+        where: 'is_active = 1 AND id IN (?, ?)',
+        whereArgs: [fromAccountId, toAccountId],
+      );
+      if (accounts.length != 2) {
+        throw const ValidationException('Wallet tidak ditemukan.');
+      }
+
+      final when = DateTimeUtils.toIso(occurredAt);
+      await txn.update(
+        'transactions',
+        {
+          'account_id': fromAccountId,
+          'amount': amount,
+          'note': blankToNull(note),
+          'occurred_at': when,
+        },
+        where: 'id = ?',
+        whereArgs: [outgoing.single['id']],
+      );
+      await txn.update(
+        'transactions',
+        {
+          'account_id': toAccountId,
+          'amount': amount,
+          'note': blankToNull(note),
+          'occurred_at': when,
+        },
+        where: 'id = ?',
+        whereArgs: [incoming.single['id']],
+      );
+    });
   });
 
   @override

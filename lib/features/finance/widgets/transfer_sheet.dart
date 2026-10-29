@@ -5,27 +5,30 @@ import '../../../app/design/tokens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../domain/entities/entities.dart';
+import '../../../domain/entities/enums.dart';
 import '../controllers/finance_controller.dart';
 import 'account_dialog.dart';
 
 Future<void> showTransferSheet(
   BuildContext context,
-  FinanceController controller,
-) {
+  FinanceController controller, {
+  MoneyTransaction? existing,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-      child: _TransferForm(controller: controller),
+      child: _TransferForm(controller: controller, existing: existing),
     ),
   );
 }
 
 class _TransferForm extends StatefulWidget {
-  const _TransferForm({required this.controller});
+  const _TransferForm({required this.controller, this.existing});
   final FinanceController controller;
+  final MoneyTransaction? existing;
 
   @override
   State<_TransferForm> createState() => _TransferFormState();
@@ -36,6 +39,7 @@ class _TransferFormState extends State<_TransferForm> {
   final _note = TextEditingController();
   Account? _from;
   Account? _to;
+  DateTime _date = DateTime.now();
   String? _error;
   bool _saving = false;
 
@@ -43,7 +47,28 @@ class _TransferFormState extends State<_TransferForm> {
   void initState() {
     super.initState();
     final accounts = widget.controller.accounts;
-    if (accounts.isNotEmpty) {
+    final existing = widget.existing;
+    final transferId = existing?.transferId;
+    if (transferId != null) {
+      final pair = widget.controller.transactions
+          .where((entry) => entry.transferId == transferId)
+          .toList();
+      final outgoing = pair
+          .where((entry) => entry.direction == TransactionDirection.expense)
+          .toList();
+      final incoming = pair
+          .where((entry) => entry.direction == TransactionDirection.income)
+          .toList();
+      if (outgoing.length == 1 && incoming.length == 1) {
+        _from = _accountFor(accounts, outgoing.single.accountId);
+        _to = _accountFor(accounts, incoming.single.accountId);
+        _amount.text = outgoing.single.amount.toString();
+        _note.text = outgoing.single.note ?? '';
+        _date = outgoing.single.occurredAt;
+      } else {
+        _error = 'Pasangan transfer tidak ditemukan.';
+      }
+    } else if (accounts.isNotEmpty) {
       final lastUsed = widget.controller.lastUsedAccountId.value;
       _from = accounts.firstWhere(
         (account) => account.id == lastUsed,
@@ -54,6 +79,13 @@ class _TransferFormState extends State<_TransferForm> {
         orElse: () => accounts.first,
       );
     }
+  }
+
+  Account? _accountFor(List<Account> accounts, String id) {
+    for (final account in accounts) {
+      if (account.id == id) return account;
+    }
+    return null;
   }
 
   @override
@@ -79,18 +111,41 @@ class _TransferFormState extends State<_TransferForm> {
       _saving = true;
       _error = null;
     });
-    final ok = await widget.controller.transfer(
-      from: from,
-      to: to,
-      amount: amount,
-      note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-    );
+    final note = _note.text.trim().isEmpty ? null : _note.text.trim();
+    final transferId = widget.existing?.transferId;
+    final ok = transferId == null
+        ? await widget.controller.transfer(
+            from: from,
+            to: to,
+            amount: amount,
+            note: note,
+            occurredAt: _date,
+          )
+        : await widget.controller.updateTransfer(
+            transferId: transferId,
+            from: from,
+            to: to,
+            amount: amount,
+            note: note,
+            occurredAt: _date,
+          );
     if (!mounted) return;
     if (ok) {
       Navigator.of(context).pop();
     } else {
       setState(() => _saving = false);
     }
+  }
+
+  Future<void> _pickDate() async {
+    final today = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(today.year - 10),
+      lastDate: DateTime(today.year + 10),
+    );
+    if (selected != null) setState(() => _date = selected);
   }
 
   @override
@@ -109,6 +164,17 @@ class _TransferFormState extends State<_TransferForm> {
             Navigator.of(context).pop();
             showAddAccountDialog(context, widget.controller);
           },
+        ),
+      );
+    }
+    if (widget.existing != null && (_from == null || _to == null)) {
+      return Padding(
+        padding: const EdgeInsets.all(AppSpace.xl),
+        child: EmptyState(
+          compact: true,
+          icon: Icons.warning_amber_outlined,
+          title: 'Transfer tidak tersedia',
+          message: _error ?? 'Wallet asal atau tujuan sudah tidak tersedia.',
         ),
       );
     }
@@ -163,6 +229,12 @@ class _TransferFormState extends State<_TransferForm> {
             ),
           ),
           const SizedBox(height: AppSpace.md),
+          OutlinedButton.icon(
+            onPressed: _pickDate,
+            icon: const Icon(Icons.calendar_today_outlined),
+            label: Text(Formatters.date(_date)),
+          ),
+          const SizedBox(height: AppSpace.md),
           TextField(
             controller: _note,
             textCapitalization: TextCapitalization.sentences,
@@ -177,7 +249,7 @@ class _TransferFormState extends State<_TransferForm> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Transfer'),
+                : Text(widget.existing == null ? 'Transfer' : 'Save changes'),
           ),
         ],
       ),

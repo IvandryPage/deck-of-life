@@ -122,7 +122,16 @@ abstract interface class FinanceRepository {
   Future<MoneyTransaction> addTransaction(MoneyTransaction transaction);
   Future<void> updateTransaction(MoneyTransaction transaction);
   Future<void> deleteTransaction(String id);
+  Future<void> restoreTransactions(List<MoneyTransaction> transactions);
   Future<List<MoneyTransaction>> transfer({
+    required String fromAccountId,
+    required String toAccountId,
+    required int amount,
+    required DateTime occurredAt,
+    String? note,
+  });
+  Future<void> updateTransfer({
+    required String transferId,
     required String fromAccountId,
     required String toAccountId,
     required int amount,

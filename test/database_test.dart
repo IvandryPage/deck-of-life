@@ -401,6 +401,80 @@ void main() {
         100000,
       ]);
       expect(await finance.recentTransactions(), isEmpty);
+
+      await finance.restoreTransactions(entries);
+      expect((await finance.accounts()).map((a) => a.confirmedBalance), [
+        375000,
+        225000,
+      ]);
+      final restored = await finance.recentTransactions();
+      expect(restored, hasLength(2));
+      expect(restored.map((entry) => entry.transferId).toSet(), {
+        entries.first.transferId,
+      });
+      expect(restored.every((entry) => entry.affectsBalance), isTrue);
+    });
+
+    test('mengubah transfer memperbarui kedua wallet secara atomik', () async {
+      await finance.createAccount(makeAccount('a', 500000));
+      await finance.createAccount(makeAccount('b', 100000));
+      await finance.createAccount(makeAccount('c', 10000));
+      final original = await finance.transfer(
+        fromAccountId: 'a',
+        toAccountId: 'b',
+        amount: 125000,
+        occurredAt: t0.add(const Duration(days: 1)),
+        note: 'ATM',
+      );
+
+      final changedAt = t0.add(const Duration(days: 3));
+      await finance.updateTransfer(
+        transferId: original.first.transferId!,
+        fromAccountId: 'b',
+        toAccountId: 'c',
+        amount: 75000,
+        occurredAt: changedAt,
+        note: 'Revisi',
+      );
+
+      expect((await finance.accounts()).map((a) => a.confirmedBalance), [
+        500000,
+        25000,
+        85000,
+      ]);
+      final updated = await finance.recentTransactions();
+      expect(updated, hasLength(2));
+      expect(updated.map((entry) => entry.id).toSet(), {
+        original[0].id,
+        original[1].id,
+      });
+      expect(updated.map((entry) => entry.accountId).toSet(), {'b', 'c'});
+      expect(updated.map((entry) => entry.amount).toSet(), {75000});
+      expect(updated.map((entry) => entry.note).toSet(), {'Revisi'});
+      expect(updated.map((entry) => entry.occurredAt).toSet(), {changedAt});
+      expect(updated.every((entry) => entry.affectsBalance), isTrue);
+    });
+
+    test('restore mempertahankan transaksi lama tetap netral saldo', () async {
+      await finance.createAccount(makeAccount('a', 500000));
+      final legacy = MoneyTransaction(
+        id: 'legacy',
+        accountId: 'a',
+        amount: 100000,
+        direction: TransactionDirection.expense,
+        category: 'Makan',
+        occurredAt: t0.add(const Duration(days: 1)),
+        createdAt: t0,
+      );
+      await finance.addTransaction(legacy);
+      await finance.deleteTransaction(legacy.id);
+      await finance.restoreTransactions([legacy]);
+
+      expect((await finance.accounts()).single.confirmedBalance, 500000);
+      expect(
+        (await finance.recentTransactions()).single.affectsBalance,
+        isFalse,
+      );
     });
 
     test(

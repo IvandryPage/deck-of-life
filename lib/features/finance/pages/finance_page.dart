@@ -33,16 +33,178 @@ class FinancePage extends GetView<FinanceController> {
         child: ListView(
           padding: const EdgeInsets.only(top: 8, bottom: 96),
           children: [
-            _SummaryCard(controller: controller),
-            _AccountsCard(controller: controller),
+            _WalletOverview(controller: controller),
+            _TransactionsCard(controller: controller),
             _BillsCard(controller: controller),
-            if (controller.transactions.isNotEmpty)
-              _TransactionsCard(controller: controller),
+            _AccountsCard(controller: controller),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpace.gutter,
+                vertical: AppSpace.sm,
+              ),
+              child: ExpansionTile(
+                title: const Text('Insights'),
+                children: [
+                  _TransactionInsights(controller: controller),
+                  _SummaryCard(controller: controller),
+                ],
+              ),
+            ),
           ],
         ),
       );
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+
+class _WalletOverview extends StatelessWidget {
+  const _WalletOverview({required this.controller});
+  final FinanceController controller;
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+    final accounts = controller.accounts;
+    final total = accounts.fold<int>(
+      0,
+      (sum, account) => sum + account.confirmedBalance,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.gutter,
+        AppSpace.sm,
+        AppSpace.gutter,
+        AppSpace.sm,
+      ),
+      child: SectionCard(
+        title: 'Total',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AmountText(
+              Formatters.rupiah(total),
+              style: context.text.displaySmall,
+              align: TextAlign.start,
+            ),
+            const SizedBox(height: AppSpace.md),
+            if (accounts.isEmpty)
+              const Text('Tambahkan wallet untuk mulai mencatat uang.')
+            else
+              SizedBox(
+                height: 72,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: accounts.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(width: AppSpace.sm),
+                  itemBuilder: (context, index) {
+                    final account = accounts[index];
+                    return Container(
+                      constraints: const BoxConstraints(minWidth: 132),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpace.md,
+                        vertical: AppSpace.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.scheme.secondaryContainer,
+                        borderRadius: AppRadius.control,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            account.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.text.labelMedium,
+                          ),
+                          const SizedBox(height: AppSpace.xs),
+                          AmountText(
+                            Formatters.rupiah(account.confirmedBalance),
+                            style: context.text.titleSmall,
+                            align: TextAlign.start,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: AppSpace.md),
+            Row(
+              children: [
+                Expanded(
+                  child: _MoneyAction(
+                    label: 'Pemasukan',
+                    icon: Icons.south_west,
+                    color: context.semantic.income,
+                    onPressed: accounts.isEmpty
+                        ? null
+                        : () => showTransactionSheet(
+                            context,
+                            controller,
+                            direction: TransactionDirection.income,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: _MoneyAction(
+                    label: 'Pengeluaran',
+                    icon: Icons.north_east,
+                    color: context.semantic.expense,
+                    onPressed: accounts.isEmpty
+                        ? null
+                        : () => showTransactionSheet(
+                            context,
+                            controller,
+                            direction: TransactionDirection.expense,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: _MoneyAction(
+                    label: 'Transfer',
+                    icon: Icons.swap_horiz,
+                    onPressed: accounts.length < 2
+                        ? null
+                        : () => showTransferSheet(context, controller),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  });
+}
+
+class _MoneyAction extends StatelessWidget {
+  const _MoneyAction({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color? color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    onPressed: onPressed,
+    icon: Icon(icon, size: AppSize.iconSm, color: color),
+    label: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1)),
+    style: OutlinedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -282,14 +444,18 @@ class _AccountsCard extends StatelessWidget {
   Widget _content(BuildContext context) {
     final accounts = controller.accounts;
     return SectionCard(
-      title: 'Akun & saldo',
+      title: 'Wallets',
       trailing: TextButton.icon(
         onPressed: () => showAddAccountDialog(context, controller),
         icon: const Icon(Icons.add),
-        label: const Text('Akun'),
+        label: const Text('Tambah'),
       ),
       child: accounts.isEmpty
-          ? const Text('Belum ada akun.')
+          ? FilledButton.icon(
+              onPressed: () => showAddAccountDialog(context, controller),
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah wallet'),
+            )
           : Column(
               children: [
                 for (final a in accounts)
@@ -306,26 +472,16 @@ class _AccountsCard extends StatelessWidget {
                     onTap: () => _updateBalance(context, a),
                     onLongPress: () => _accountMenu(context, a),
                   ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    TextButton.icon(
-                      onPressed: () =>
-                          showTransactionSheet(context, controller),
-                      icon: const Icon(Icons.edit_note),
-                      label: const Text('Catat transaksi'),
-                    ),
-                    TextButton.icon(
-                      onPressed: accounts.length < 2
-                          ? null
-                          : () => showTransferSheet(context, controller),
-                      icon: const Icon(Icons.swap_horiz),
-                      label: const Text('Transfer'),
-                    ),
-                  ],
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => showAddAccountDialog(context, controller),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tambah wallet'),
+                  ),
                 ),
                 Text(
-                  'Saldo wallet mengikuti transaksi. Ketuk akun untuk koreksi saldo.',
+                  'Ketuk wallet untuk Adjust balance. Tahan untuk mengubah nama atau menyembunyikan.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -493,16 +649,31 @@ class _BillsCard extends StatelessWidget {
                     ),
                 ],
               ),
-              trailing: Text(
-                Formatters.rupiah(b.amount),
-                style: theme.textTheme.titleSmall,
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    Formatters.rupiah(b.amount),
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  TextButton(
+                    onPressed: () => _payBill(context, b),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(48, 36),
+                    ),
+                    child: const Text('Pay'),
+                  ),
+                ],
               ),
               onTap: () => showBillSheet(context, controller, existing: b),
               onLongPress: () => _billMenu(context, b),
             ),
           if (unpaid.isNotEmpty)
             Text(
-              'Ketuk untuk mengubah. Tahan untuk menandai dibayar atau menghapus.',
+              'Ketuk tagihan untuk mengubah. Pay mencatat pengeluaran pada wallet terpilih.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -552,51 +723,7 @@ class _BillsCard extends StatelessWidget {
     );
     if (choice == null || !context.mounted) return;
     if (choice == 'paid') {
-      if (controller.accounts.isEmpty) {
-        AppToast.show('Tambahkan wallet sebelum membayar tagihan.');
-        return;
-      }
-      final preferredId = controller.lastUsedAccountId.value;
-      final initialAccount = controller.accounts.firstWhere(
-        (item) => item.id == preferredId,
-        orElse: () => controller.accounts.first,
-      );
-      var selectedAccount = initialAccount;
-      final accountId = await showDialog<String>(
-        context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Pilih wallet'),
-            content: DropdownButtonFormField<Account>(
-              initialValue: selectedAccount,
-              items: [
-                for (final account in controller.accounts)
-                  DropdownMenuItem(value: account, child: Text(account.name)),
-              ],
-              onChanged: (account) {
-                if (account != null) {
-                  setDialogState(() => selectedAccount = account);
-                }
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, selectedAccount.id),
-                child: const Text('Tandai dibayar'),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (accountId == null || !context.mounted) return;
-      final account = controller.accounts.firstWhere(
-        (item) => item.id == accountId,
-      );
-      await controller.markPaid(b, account);
+      await _payBill(context, b);
     } else {
       final ok = await confirmDialog(
         context,
@@ -607,6 +734,53 @@ class _BillsCard extends StatelessWidget {
       );
       if (ok) await controller.deleteBill(b);
     }
+  }
+
+  Future<void> _payBill(BuildContext context, Bill bill) async {
+    if (controller.accounts.isEmpty) {
+      AppToast.show('Tambahkan wallet sebelum membayar tagihan.');
+      return;
+    }
+    final preferredId = controller.lastUsedAccountId.value;
+    var selectedAccount = controller.accounts.firstWhere(
+      (item) => item.id == preferredId,
+      orElse: () => controller.accounts.first,
+    );
+    final accountId = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Pilih wallet'),
+          content: DropdownButtonFormField<Account>(
+            initialValue: selectedAccount,
+            items: [
+              for (final account in controller.accounts)
+                DropdownMenuItem(value: account, child: Text(account.name)),
+            ],
+            onChanged: (account) {
+              if (account != null) {
+                setDialogState(() => selectedAccount = account);
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, selectedAccount.id),
+              child: const Text('Tandai dibayar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (accountId == null || !context.mounted) return;
+    final account = controller.accounts.firstWhere(
+      (item) => item.id == accountId,
+    );
+    await controller.markPaid(bill, account);
   }
 }
 
@@ -620,12 +794,9 @@ class _TransactionsCard extends StatelessWidget {
   static const int _collapsed = 8;
 
   Widget _content(BuildContext context) {
-    final theme = Theme.of(context);
-    final sem = context.semantic;
     final all = controller.filteredTransactions;
     final expanded = controller.txnExpanded.value;
     final shown = expanded ? all : all.take(_collapsed).toList();
-    final month = controller.monthSummary(DateTime.now());
     final dir = controller.txnFilter.value;
 
     return SectionCard(
@@ -633,42 +804,6 @@ class _TransactionsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ringkasan bulan ini: dari transaksi yang dicatat, bukan seluruh arus kas.
-          Row(
-            children: [
-              Expanded(
-                child: _MiniTotal(
-                  label: 'Masuk bulan ini',
-                  value: Formatters.rupiah(month.income),
-                  color: sem.income,
-                  icon: Icons.south_west,
-                ),
-              ),
-              const SizedBox(width: AppSpace.md),
-              Expanded(
-                child: _MiniTotal(
-                  label: 'Keluar bulan ini',
-                  value: Formatters.rupiah(month.expense),
-                  color: sem.expense,
-                  icon: Icons.north_east,
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpace.xs),
-            child: Text(
-              'Dihitung dari transaksi yang Anda catat saja.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          if (month.byCategory.isNotEmpty) ...[
-            const SizedBox(height: AppSpace.md),
-            _CategoryBars(byCategory: month.byCategory, total: month.expense),
-          ],
-          const SizedBox(height: AppSpace.lg),
           TextField(
             onChanged: (v) => controller.txnQuery.value = v,
             decoration: const InputDecoration(
@@ -677,6 +812,15 @@ class _TransactionsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpace.sm),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpace.xs),
+            child: Text(
+              'Ketuk untuk mengubah; geser ke kiri untuk menghapus.',
+              style: context.text.bodySmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
           Wrap(
             spacing: AppSpace.sm,
             children: [
@@ -708,31 +852,47 @@ class _TransactionsCard extends StatelessWidget {
               child: Column(
                 children: [
                   for (final t in shown)
-                    _TransactionRow(
-                      t: t,
-                      accountName: controller.accountName(t.accountId),
-                      onTap: t.billId == null && t.transferId == null
-                          ? () => showTransactionSheet(
-                              context,
-                              controller,
-                              existing: t,
-                            )
-                          : null,
-                      onDelete: t.billId == null
-                          ? () async {
-                              final ok = await confirmDialog(
-                                context,
-                                title: 'Hapus transaksi?',
-                                message: t.transferId == null
-                                    ? 'Saldo wallet akan diperbarui.'
-                                    : 'Kedua catatan transfer akan dihapus dan saldo wallet diperbarui.',
-                                confirmLabel: 'Hapus',
-                                destructive: true,
-                              );
-                              if (ok) await controller.deleteTransaction(t);
-                            }
-                          : null,
-                    ),
+                    if (t.billId == null)
+                      Dismissible(
+                        key: ValueKey(t.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpace.lg,
+                          ),
+                          color: context.scheme.errorContainer,
+                          child: Icon(
+                            Icons.delete_outline,
+                            color: context.scheme.onErrorContainer,
+                          ),
+                        ),
+                        onDismissed: (_) async {
+                          final deleted = await controller.deleteTransaction(t);
+                          if (!deleted) await controller.load();
+                        },
+                        child: _TransactionRow(
+                          t: t,
+                          accountName: controller.accountName(t.accountId),
+                          onTap: t.transferId == null
+                              ? () => showTransactionSheet(
+                                  context,
+                                  controller,
+                                  existing: t,
+                                )
+                              : () => showTransferSheet(
+                                  context,
+                                  controller,
+                                  existing: t,
+                                ),
+                        ),
+                      )
+                    else
+                      _TransactionRow(
+                        t: t,
+                        accountName: controller.accountName(t.accountId),
+                        onTap: null,
+                      ),
                   if (all.length > _collapsed)
                     TextButton(
                       onPressed: () => controller.txnExpanded.value = !expanded,
@@ -749,6 +909,69 @@ class _TransactionsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TransactionInsights extends StatelessWidget {
+  const _TransactionInsights({required this.controller});
+  final FinanceController controller;
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+    final month = controller.monthSummary(DateTime.now());
+    if (month.income == 0 && month.expense == 0) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.gutter,
+        AppSpace.sm,
+        AppSpace.gutter,
+        0,
+      ),
+      child: SectionCard(
+        title: 'Transaksi bulan ini',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniTotal(
+                    label: 'Masuk',
+                    value: Formatters.rupiah(month.income),
+                    color: context.semantic.income,
+                    icon: Icons.south_west,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: _MiniTotal(
+                    label: 'Keluar',
+                    value: Formatters.rupiah(month.expense),
+                    color: context.semantic.expense,
+                    icon: Icons.north_east,
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpace.xs),
+              child: Text(
+                'Dihitung dari transaksi yang Anda catat saja.',
+                style: context.text.bodySmall?.copyWith(
+                  color: context.scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            if (month.byCategory.isNotEmpty) ...[
+              const SizedBox(height: AppSpace.md),
+              _CategoryBars(byCategory: month.byCategory, total: month.expense),
+            ],
+          ],
+        ),
+      ),
+    );
+  });
 }
 
 class _MiniTotal extends StatelessWidget {
@@ -835,7 +1058,7 @@ class _CategoryBars extends StatelessWidget {
                         tween: Tween(begin: 0, end: value / total),
                         duration: AppMotion.of(context, AppMotion.emphasized),
                         curve: AppMotion.enter,
-                        builder: (_, v, __) => LinearProgressIndicator(
+                        builder: (_, v, _) => LinearProgressIndicator(
                           value: v,
                           minHeight: 8,
                           backgroundColor: context.scheme.surfaceContainerHigh,
@@ -867,13 +1090,11 @@ class _TransactionRow extends StatelessWidget {
   const _TransactionRow({
     required this.t,
     required this.accountName,
-    required this.onDelete,
     this.onTap,
   });
 
   final MoneyTransaction t;
   final String accountName;
-  final VoidCallback? onDelete;
   final VoidCallback? onTap;
 
   @override
@@ -886,7 +1107,6 @@ class _TransactionRow extends StatelessWidget {
           '${income ? "Pemasukan" : "Pengeluaran"} ${Formatters.rupiah(t.amount)}, ${t.category}',
       child: InkWell(
         onTap: onTap,
-        onLongPress: onDelete,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AppSize.tap + 8),
           child: Row(

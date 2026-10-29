@@ -193,8 +193,32 @@ class FinanceController extends GetxController with DataMutations {
     await _settings.set(SettingKeys.lastUsedFinanceAccountId, id);
   }
 
-  Future<bool> deleteTransaction(MoneyTransaction t) =>
-      mutate(() => _finance.deleteTransaction(t.id));
+  Future<bool> deleteTransaction(MoneyTransaction t) async {
+    final deleted = t.transferId == null
+        ? [t]
+        : transactions
+              .where((entry) => entry.transferId == t.transferId)
+              .toList();
+    final ok = await mutate(() => _finance.deleteTransaction(t.id));
+    if (ok) {
+      AppToast.undoable(
+        'Transaksi dihapus',
+        () => undoDeleteTransactions(deleted),
+      );
+    }
+    return ok;
+  }
+
+  Future<void> undoDeleteTransactions(List<MoneyTransaction> deleted) async {
+    try {
+      await _finance.restoreTransactions(deleted);
+      _revision.bump();
+      AppToast.show('Transaksi dikembalikan');
+    } catch (e, st) {
+      AppLog.error('finance.undo_delete_transaction', e, st);
+      AppToast.show(messageOf(e), isError: true);
+    }
+  }
 
   Future<bool> updateTransaction({
     required MoneyTransaction existing,
@@ -225,16 +249,36 @@ class FinanceController extends GetxController with DataMutations {
     required Account to,
     required int amount,
     String? note,
+    DateTime? occurredAt,
   }) => mutate(() async {
     await _finance.transfer(
       fromAccountId: from.id,
       toAccountId: to.id,
       amount: amount,
-      occurredAt: DateTime.now(),
+      occurredAt: occurredAt ?? DateTime.now(),
       note: note,
     );
     await _rememberAccount(from.id);
   }, success: 'Transfer dicatat');
+
+  Future<bool> updateTransfer({
+    required String transferId,
+    required Account from,
+    required Account to,
+    required int amount,
+    String? note,
+    required DateTime occurredAt,
+  }) => mutate(() async {
+    await _finance.updateTransfer(
+      transferId: transferId,
+      fromAccountId: from.id,
+      toAccountId: to.id,
+      amount: amount,
+      occurredAt: occurredAt,
+      note: note,
+    );
+    await _rememberAccount(from.id);
+  }, success: 'Transfer diperbarui');
 
   // ---- Tagihan --------------------------------------------------------------
 
@@ -254,27 +298,27 @@ class FinanceController extends GetxController with DataMutations {
 
   Future<bool> markPaid(Bill b, Account account) async {
     final ok = await mutate(() async {
-  await _markBillPaid(b.id, accountId: account.id);
-  await _rememberAccount(account.id);
+      await _markBillPaid(b.id, accountId: account.id);
+      await _rememberAccount(account.id);
     });
     if (ok) {
-  AppToast.show(
-    '"${b.title}" dibayar dan pengeluarannya dicatat',
-    actionLabel: 'Urungkan',
-    onAction: () => _undoMarkPaid(b),
-  );
+      AppToast.show(
+        '"${b.title}" dibayar dan pengeluarannya dicatat',
+        actionLabel: 'Urungkan',
+        onAction: () => _undoMarkPaid(b),
+      );
     }
     return ok;
   }
 
   Future<void> _undoMarkPaid(Bill bill) async {
     try {
-  await _markBillPaid.undo();
-  _revision.bump();
-  AppToast.show('Pembayaran "${bill.title}" diurungkan');
+      await _markBillPaid.undo();
+      _revision.bump();
+      AppToast.show('Pembayaran "${bill.title}" diurungkan');
     } catch (e, st) {
-  AppLog.error('finance.undo_bill_payment', e, st);
-  AppToast.show(messageOf(e), isError: true);
+      AppLog.error('finance.undo_bill_payment', e, st);
+      AppToast.show(messageOf(e), isError: true);
     }
   }
 

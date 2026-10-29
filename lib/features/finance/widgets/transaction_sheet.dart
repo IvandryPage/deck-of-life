@@ -26,6 +26,7 @@ Future<void> showTransactionSheet(
   BuildContext context,
   FinanceController controller, {
   MoneyTransaction? existing,
+  TransactionDirection direction = TransactionDirection.expense,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -33,14 +34,23 @@ Future<void> showTransactionSheet(
     useSafeArea: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-      child: _TransactionForm(controller: controller, existing: existing),
+      child: _TransactionForm(
+        controller: controller,
+        existing: existing,
+        direction: direction,
+      ),
     ),
   );
 }
 
 class _TransactionForm extends StatefulWidget {
-  const _TransactionForm({required this.controller, this.existing});
+  const _TransactionForm({
+    required this.controller,
+    required this.direction,
+    this.existing,
+  });
   final FinanceController controller;
+  final TransactionDirection direction;
   final MoneyTransaction? existing;
 
   @override
@@ -50,7 +60,7 @@ class _TransactionForm extends StatefulWidget {
 class _TransactionFormState extends State<_TransactionForm> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
-  TransactionDirection _direction = TransactionDirection.expense;
+  late TransactionDirection _direction = widget.direction;
   String? _category;
   Account? _account;
   DateTime _date = DateTime.now();
