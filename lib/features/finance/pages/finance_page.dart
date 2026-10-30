@@ -8,7 +8,6 @@ import '../../../core/widgets/common_widgets.dart';
 import '../../../core/widgets/fields_dialog.dart';
 import '../../../domain/entities/entities.dart';
 import '../../../domain/entities/enums.dart';
-import '../../../domain/entities/logic.dart';
 import '../controllers/finance_controller.dart';
 import '../widgets/account_dialog.dart';
 import '../widgets/bill_sheet.dart';
@@ -38,11 +37,12 @@ class FinancePage extends GetView<FinanceController> {
             _BillsCard(controller: controller),
             _AccountsCard(controller: controller),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpace.gutter,
-                vertical: AppSpace.sm,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
               child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.gutter,
+                ),
+                childrenPadding: EdgeInsets.zero,
                 title: const Text('Insights'),
                 children: [
                   _TransactionInsights(controller: controller),
@@ -92,7 +92,7 @@ class _WalletOverview extends StatelessWidget {
               const Text('Add a wallet to start tracking money.')
             else
               SizedBox(
-                height: 72,
+                height: 80,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: accounts.length,
@@ -100,30 +100,53 @@ class _WalletOverview extends StatelessWidget {
                       const SizedBox(width: AppSpace.sm),
                   itemBuilder: (context, index) {
                     final account = accounts[index];
+                    final visual = _accountVisual(context, account.accountType);
                     return Container(
-                      constraints: const BoxConstraints(minWidth: 132),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.md,
-                        vertical: AppSpace.sm,
-                      ),
+                      width: 152,
+                      padding: const EdgeInsets.all(AppSpace.md),
                       decoration: BoxDecoration(
-                        color: context.scheme.secondaryContainer,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            visual.bg,
+                            context.scheme.surfaceContainerLowest,
+                          ],
+                        ),
                         borderRadius: AppRadius.control,
+                        border: Border.all(
+                          color: visual.fg.withValues(alpha: 0.16),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            account.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.text.labelMedium,
+                          Row(
+                            children: [
+                              Icon(
+                                visual.icon,
+                                size: AppSize.iconXs,
+                                color: visual.fg,
+                              ),
+                              const SizedBox(width: AppSpace.xs),
+                              Expanded(
+                                child: Text(
+                                  account.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.text.labelMedium?.copyWith(
+                                    color: visual.fg,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: AppSpace.xs),
                           AmountText(
                             Formatters.rupiah(account.confirmedBalance),
                             style: context.text.titleSmall,
+                            color: visual.fg,
                             align: TextAlign.start,
                           ),
                         ],
@@ -207,6 +230,36 @@ class _MoneyAction extends StatelessWidget {
   );
 }
 
+({IconData icon, Color bg, Color fg}) _accountVisual(
+  BuildContext context,
+  AccountType type,
+) {
+  final scheme = Theme.of(context).colorScheme;
+  final sem = context.semantic;
+  return switch (type) {
+    AccountType.cash => (
+      icon: Icons.payments_outlined,
+      bg: sem.warningContainer,
+      fg: sem.warning,
+    ),
+    AccountType.bank => (
+      icon: Icons.account_balance_outlined,
+      bg: scheme.primaryContainer,
+      fg: scheme.onPrimaryContainer,
+    ),
+    AccountType.eWallet => (
+      icon: Icons.smartphone_outlined,
+      bg: scheme.tertiaryContainer,
+      fg: scheme.onTertiaryContainer,
+    ),
+    AccountType.other => (
+      icon: Icons.wallet_outlined,
+      bg: scheme.secondaryContainer,
+      fg: scheme.onSecondaryContainer,
+    ),
+  };
+}
+
 // ---------------------------------------------------------------------------
 
 class _SummaryCard extends StatelessWidget {
@@ -219,8 +272,7 @@ class _SummaryCard extends StatelessWidget {
   Widget _content(BuildContext context) {
     final theme = Theme.of(context);
     final s = controller.summary.value;
-    final t = controller.target.value;
-    if (s == null || t == null) return const SizedBox.shrink();
+    if (s == null) return const SizedBox.shrink();
 
     if (!s.hasAccounts) {
       return SectionCard(
@@ -228,11 +280,13 @@ class _SummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'No balance yet. Add a wallet, such as cash or a bank account, and enter its current balance. '
-              'You do not need to record every expense.',
+            Text(
+              'Add a wallet to see your balance and bill statistics.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             FilledButton.icon(
               onPressed: () => showAddAccountDialog(context, controller),
               icon: const Icon(Icons.add),
@@ -244,195 +298,229 @@ class _SummaryCard extends StatelessWidget {
     }
 
     final free = s.estimatedFreeMoney;
+    final reality = controller.reality.value;
     final stale =
         s.oldestConfirmedAt != null &&
         DateTime.now().difference(s.oldestConfirmedAt!).inDays >= 7;
+
+    final items = <_StatData>[
+      _StatData(
+        label: 'Unpaid bills',
+        value: Formatters.rupiah(s.knownUnpaidBills),
+        icon: Icons.receipt_long_outlined,
+        tone: _StatTone.neutral,
+      ),
+      _StatData(
+        label: 'Estimated left',
+        value: Formatters.rupiah(free),
+        icon: free < 0 ? Icons.trending_down : Icons.savings_outlined,
+        tone: free < 0 ? _StatTone.expense : _StatTone.income,
+        caption: free < 0 ? 'Shortfall' : 'After unpaid bills',
+      ),
+      if (reality != null) ...[
+        if (reality.overdueTotal > 0)
+          _StatData(
+            label: 'Overdue',
+            value: Formatters.rupiah(reality.overdueTotal),
+            icon: Icons.error_outline,
+            tone: _StatTone.urgent,
+            caption: reality.overdueCount == 1
+                ? '1 bill'
+                : '${reality.overdueCount} bills',
+          ),
+        _StatData(
+          label: 'Due soon',
+          value: Formatters.rupiah(reality.dueInHorizonTotal),
+          icon: Icons.event_outlined,
+          tone: _StatTone.warning,
+          caption: 'Next ${reality.horizonDays} days',
+        ),
+        if (reality.laterTotal > 0)
+          _StatData(
+            label: 'Later',
+            value: Formatters.rupiah(reality.laterTotal),
+            icon: Icons.event_note_outlined,
+            tone: _StatTone.info,
+            caption: 'After ${reality.horizonDays} days',
+          ),
+      ],
+    ];
 
     return SectionCard(
       title: 'Summary',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Confirmed balance',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          AmountText(
-            Formatters.rupiah(s.confirmedTotal),
-            style: theme.textTheme.displaySmall,
-            align: TextAlign.start,
-          ),
-          if (s.lastConfirmedAt != null)
-            Text(
-              'Last updated ${Formatters.dateTime(s.lastConfirmedAt!)}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Confirmed balance',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    AmountText(
+                      Formatters.rupiah(s.confirmedTotal),
+                      style: theme.textTheme.displaySmall,
+                      align: TextAlign.start,
+                    ),
+                    if (s.lastConfirmedAt != null)
+                      Text(
+                        'Updated ${Formatters.dateTime(s.lastConfirmedAt!)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          if (stale)
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: StatusTag(
-                'A balance has not been updated in over 7 days',
-                icon: Icons.schedule,
-                warning: true,
-              ),
-            ),
-          const Divider(height: 20),
-          KeyValueRow(
-            'Unpaid bills',
-            Formatters.rupiah(s.knownUnpaidBills),
+              if (stale)
+                const Padding(
+                  padding: EdgeInsets.only(left: AppSpace.sm),
+                  child: Tooltip(
+                    message: 'A balance has not been updated in over 7 days',
+                    child: StatusTag(
+                      'Stale',
+                      icon: Icons.schedule,
+                      warning: true,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          KeyValueRow(
-            'Estimated money left',
-            free < 0
-                ? 'Short by ${Formatters.rupiah(-free)}'
-                : Formatters.rupiah(free),
-            emphasize: true,
-          ),
-          if (controller.reality.value != null)
-            ..._breakdown(controller.reality.value!),
-          Text(
-            'Estimate = confirmed balance minus unpaid bills. This is not your actual bank balance.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const Divider(height: 20),
-          _targetSection(context, t, s),
+          const SizedBox(height: AppSpace.md),
+          _StatGrid(items: items),
         ],
       ),
     );
   }
-
-  List<Widget> _breakdown(RealityCheck r) => [
-    if (r.overdueTotal > 0)
-      KeyValueRow(
-        '  Overdue',
-        Formatters.rupiah(r.overdueTotal),
-      ),
-    KeyValueRow(
-      '  Due in the next ${r.horizonDays} days',
-      Formatters.rupiah(r.dueInHorizonTotal),
-    ),
-    if (r.laterTotal > 0)
-      KeyValueRow('  Later', Formatters.rupiah(r.laterTotal)),
-    if (r.fundingGap > 0)
-      KeyValueRow(
-        'Funding gap (${r.horizonDays} days)',
-        Formatters.rupiah(r.fundingGap),
-        emphasize: true,
-      ),
-  ];
-
-  Widget _targetSection(
-    BuildContext context,
-    IncomeTarget t,
-    FinanceSummary s,
-  ) {
-    final theme = Theme.of(context);
-    final days = controller.workdays.value;
-    final income = controller.confirmedIncome.value;
-
-    final Widget headline;
-    switch (t.status) {
-      case IncomeTargetStatus.notNeeded:
-        headline = const KeyValueRow(
-          'Daily income target',
-          'No extra income needed',
-          emphasize: true,
-        );
-      case IncomeTargetStatus.needsWorkdays:
-        headline = const KeyValueRow(
-          'Daily income target',
-          'Set workdays',
-          emphasize: true,
-        );
-      case IncomeTargetStatus.ready:
-        headline = KeyValueRow(
-          'Estimated daily income target',
-          Formatters.rupiah(t.dailyTarget!),
-          emphasize: true,
-        );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        headline,
-        const SizedBox(height: 4),
-        Text(
-          'Estimate: bills ${Formatters.rupiah(s.knownUnpaidBills)} − available funds '
-          '${Formatters.rupiah(s.confirmedTotal)} − confirmed income '
-          '${Formatters.rupiah(income)} = shortfall ${Formatters.rupiah(t.fundingGap)}'
-          '${days != null && days > 0 ? ', divided across $days workdays' : ''}. '
-          'Unconfirmed income is not included.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Wrap(
-          spacing: 8,
-          children: [
-            TextButton(
-              onPressed: () => _editWorkdays(context),
-              child: Text(
-                days == null ? 'Set workdays' : 'Workdays: $days',
-              ),
-            ),
-            TextButton(
-              onPressed: () => _editIncome(context),
-              child: const Text('Confirmed income'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Future<void> _editWorkdays(BuildContext context) async {
-    final r = await showFieldsDialog(
-      context,
-      title: 'Available workdays',
-      message: 'How many days can you work before your bills are due?',
-      fields: [
-        FieldSpec(
-          label: 'Number of days',
-          numeric: true,
-          initial: controller.workdays.value?.toString() ?? '',
-        ),
-      ],
-    );
-    if (r == null) return;
-    final n = int.tryParse(r[0]);
-    await controller.setWorkdays(n == null || n <= 0 ? null : n);
-  }
-
-  Future<void> _editIncome(BuildContext context) async {
-    final r = await showFieldsDialog(
-      context,
-      title: 'Confirmed income',
-      message:
-          'Only include money you are certain to receive before bills are due, such as a confirmed paycheck. Leave blank or enter 0 if none.',
-      fields: [
-        FieldSpec(
-          label: 'Amount (Rp)',
-          numeric: true,
-          required: false,
-          initial: controller.confirmedIncome.value == 0
-              ? ''
-              : controller.confirmedIncome.value.toString(),
-        ),
-      ],
-    );
-    if (r == null) return;
-    await controller.setConfirmedIncome(Formatters.parseRupiah(r[0]) ?? 0);
-  }
 }
 
 // ---------------------------------------------------------------------------
+
+class _WalletCard extends StatelessWidget {
+  const _WalletCard({
+    required this.account,
+    required this.wide,
+    required this.onTap,
+    required this.onMenu,
+  });
+
+  final Account account;
+  final bool wide;
+  final VoidCallback onTap;
+  final VoidCallback onMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final visual = _accountVisual(context, account.accountType);
+    final badgeSize = wide ? 38.0 : 32.0;
+
+    final badge = Container(
+      width: badgeSize,
+      height: badgeSize,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Icon(visual.icon, size: AppSize.iconSm, color: visual.fg),
+    );
+
+    final name = Text(
+      account.name,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: (wide ? theme.textTheme.titleSmall : theme.textTheme.labelLarge)
+          ?.copyWith(fontWeight: FontWeight.w700),
+    );
+
+    final amount = AmountText(
+      Formatters.rupiah(account.confirmedBalance),
+      style: wide ? theme.textTheme.titleLarge : theme.textTheme.titleMedium,
+      align: TextAlign.start,
+    );
+
+    final caption = Text(
+      wide
+          ? '${account.accountType.label} · as of ${Formatters.date(account.balanceConfirmedAt)}'
+          : 'as of ${Formatters.date(account.balanceConfirmedAt)}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+
+    final menu = IconButton(
+      onPressed: onMenu,
+      icon: const Icon(Icons.more_horiz),
+      iconSize: AppSize.iconSm,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+      tooltip: 'Wallet options',
+    );
+
+    final content = wide
+        ? Row(
+            children: [
+              badge,
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [name, const SizedBox(height: 2), amount, caption],
+                ),
+              ),
+              menu,
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [badge, const Spacer(), menu]),
+              const Spacer(),
+              name,
+              const SizedBox(height: 2),
+              amount,
+              caption,
+            ],
+          );
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppRadius.control,
+      clipBehavior: Clip.antiAlias,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [visual.bg, theme.colorScheme.surfaceContainerLowest],
+          ),
+          borderRadius: AppRadius.control,
+          border: Border.all(color: visual.fg.withValues(alpha: 0.16)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onMenu,
+          borderRadius: AppRadius.control,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: content,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _AccountsCard extends StatelessWidget {
   const _AccountsCard({required this.controller});
@@ -445,43 +533,66 @@ class _AccountsCard extends StatelessWidget {
     final accounts = controller.accounts;
     return SectionCard(
       title: 'Wallets',
-      trailing: TextButton.icon(
-        onPressed: () => showAddAccountDialog(context, controller),
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
-      ),
       child: accounts.isEmpty
-          ? FilledButton.icon(
-              onPressed: () => showAddAccountDialog(context, controller),
-              icon: const Icon(Icons.add),
-              label: const Text('Add wallet'),
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No wallets yet. Add one to start tracking your balance.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: AppSpace.md),
+                FilledButton.icon(
+                  onPressed: () => showAddAccountDialog(context, controller),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add wallet'),
+                ),
+              ],
             )
           : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final a in accounts)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(a.name),
-                    subtitle: Text(
-                      '${a.accountType.label} · as of ${Formatters.dateTime(a.balanceConfirmedAt)}',
-                    ),
-                    trailing: Text(
-                      Formatters.rupiah(a.confirmedBalance),
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    onTap: () => _updateBalance(context, a),
-                    onLongPress: () => _accountMenu(context, a),
-                  ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final half = (constraints.maxWidth - AppSpace.md) / 2;
+                    final lastIsWide = accounts.length.isOdd;
+                    return Wrap(
+                      spacing: AppSpace.md,
+                      runSpacing: AppSpace.md,
+                      children: [
+                        for (var i = 0; i < accounts.length; i++)
+                          SizedBox(
+                            width: lastIsWide && i == accounts.length - 1
+                                ? constraints.maxWidth
+                                : half,
+                            height: lastIsWide && i == accounts.length - 1
+                                ? 108
+                                : 136,
+                            child: _WalletCard(
+                              account: accounts[i],
+                              wide: lastIsWide && i == accounts.length - 1,
+                              onTap: () => _updateBalance(context, accounts[i]),
+                              onMenu: () => _accountMenu(context, accounts[i]),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSpace.md),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
                     onPressed: () => showAddAccountDialog(context, controller),
                     icon: const Icon(Icons.add),
                     label: const Text('Add wallet'),
                   ),
                 ),
+                const SizedBox(height: AppSpace.xs),
                 Text(
-                  'Tap a wallet to adjust its balance. Long-press to rename or hide it.',
+                  'Tap a wallet to adjust its balance. Long-press for more options.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -625,8 +736,7 @@ class _BillsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (unpaid.isEmpty)
-            const Text('No unpaid bills.'),
+          if (unpaid.isEmpty) const Text('No unpaid bills.'),
           for (final b in unpaid)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -897,9 +1007,7 @@ class _TransactionsCard extends StatelessWidget {
                     TextButton(
                       onPressed: () => controller.txnExpanded.value = !expanded,
                       child: Text(
-                        expanded
-                            ? 'Show less'
-                            : 'Show all (${all.length})',
+                        expanded ? 'Show less' : 'Show all (${all.length})',
                       ),
                     ),
                 ],
@@ -921,6 +1029,10 @@ class _TransactionInsights extends StatelessWidget {
     if (month.income == 0 && month.expense == 0) {
       return const SizedBox.shrink();
     }
+    final net = month.income - month.expense;
+    final spentRatio = month.income <= 0
+        ? 1.0
+        : (month.expense / month.income).clamp(0.0, 1.0);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpace.gutter,
@@ -933,35 +1045,41 @@ class _TransactionInsights extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _MiniTotal(
-                    label: 'Income',
-                    value: Formatters.rupiah(month.income),
-                    color: context.semantic.income,
-                    icon: Icons.south_west,
-                  ),
+            _StatGrid(
+              items: [
+                _StatData(
+                  label: 'Income',
+                  value: Formatters.rupiah(month.income),
+                  icon: Icons.south_west,
+                  tone: _StatTone.income,
+                  caption: '${month.count} transactions',
                 ),
-                const SizedBox(width: AppSpace.md),
-                Expanded(
-                  child: _MiniTotal(
-                    label: 'Expenses',
-                    value: Formatters.rupiah(month.expense),
-                    color: context.semantic.expense,
-                    icon: Icons.north_east,
-                  ),
+                _StatData(
+                  label: 'Expenses',
+                  value: Formatters.rupiah(month.expense),
+                  icon: Icons.north_east,
+                  tone: _StatTone.expense,
+                  caption: month.expense == 0
+                      ? 'No expenses'
+                      : '${month.byCategory.length} categories',
+                ),
+                _StatData(
+                  label: 'Net',
+                  value:
+                      '${net < 0 ? '-' : '+'}${Formatters.rupiah(net.abs())}',
+                  icon: net < 0 ? Icons.trending_down : Icons.trending_up,
+                  tone: net < 0 ? _StatTone.expense : _StatTone.income,
+                ),
+                _StatData(
+                  label: 'Spent',
+                  value: '${(spentRatio * 100).round()}%',
+                  icon: Icons.pie_chart_outline,
+                  tone: spentRatio > 0.9 ? _StatTone.warning : _StatTone.info,
+                  caption: month.income > 0
+                      ? 'of recorded income'
+                      : 'no recorded income',
                 ),
               ],
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpace.xs),
-              child: Text(
-                'Based only on transactions you have recorded.',
-                style: context.text.bodySmall?.copyWith(
-                  color: context.scheme.onSurfaceVariant,
-                ),
-              ),
             ),
             if (month.byCategory.isNotEmpty) ...[
               const SizedBox(height: AppSpace.md),
@@ -974,44 +1092,168 @@ class _TransactionInsights extends StatelessWidget {
   });
 }
 
-class _MiniTotal extends StatelessWidget {
-  const _MiniTotal({
+enum _StatTone { neutral, income, expense, warning, info, urgent }
+
+class _StatData {
+  const _StatData({
     required this.label,
     required this.value,
-    required this.color,
     required this.icon,
+    required this.tone,
+    this.caption,
+    this.onTap,
   });
 
   final String label;
   final String value;
-  final Color color;
   final IconData icon;
+  final _StatTone tone;
+  final String? caption;
+  final VoidCallback? onTap;
+}
+
+class _StatGrid extends StatelessWidget {
+  const _StatGrid({required this.items});
+  final List<_StatData> items;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final half = (constraints.maxWidth - AppSpace.md) / 2;
+      final lastIsWide = items.length.isOdd;
+      return Wrap(
+        spacing: AppSpace.md,
+        runSpacing: AppSpace.md,
         children: [
-          Icon(icon, size: AppSize.iconXs, color: color),
-          const SizedBox(width: AppSpace.xs),
-          Flexible(
-            child: Text(
-              label,
-              style: context.text.bodySmall?.copyWith(
-                color: context.scheme.onSurfaceVariant,
+          for (var i = 0; i < items.length; i++)
+            SizedBox(
+              width: lastIsWide && i == items.length - 1
+                  ? constraints.maxWidth
+                  : half,
+              child: _StatTile(data: items[i]),
+            ),
+        ],
+      );
+    },
+  );
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.data});
+  final _StatData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (bg, fg) = switch (data.tone) {
+      _StatTone.neutral => (
+        theme.colorScheme.secondaryContainer,
+        theme.colorScheme.onSecondaryContainer,
+      ),
+      _StatTone.income => (
+        context.semantic.incomeContainer,
+        context.semantic.income,
+      ),
+      _StatTone.expense => (
+        context.semantic.expenseContainer,
+        context.semantic.expense,
+      ),
+      _StatTone.warning => (
+        context.semantic.warningContainer,
+        context.semantic.warning,
+      ),
+      _StatTone.urgent => (
+        theme.colorScheme.errorContainer,
+        theme.colorScheme.onErrorContainer,
+      ),
+      _StatTone.info => (
+        theme.colorScheme.tertiaryContainer,
+        theme.colorScheme.onTertiaryContainer,
+      ),
+    };
+    final valueColor = data.tone == _StatTone.neutral
+        ? theme.colorScheme.onSurface
+        : fg;
+    final label =
+        '${data.label}: ${data.value}'
+        '${data.caption == null ? '' : ', ${data.caption}'}';
+
+    Widget content = Padding(
+      padding: const EdgeInsets.all(AppSpace.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(data.icon, size: AppSize.iconSm, color: fg),
+              ),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: Text(
+                  data.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (data.onTap != null)
+                Icon(
+                  Icons.edit_outlined,
+                  size: AppSize.iconXs,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.sm),
+          AmountText(
+            data.value,
+            style: theme.textTheme.titleMedium,
+            color: valueColor,
+            align: TextAlign.start,
+          ),
+          if (data.caption != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              data.caption!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-          ),
+          ],
         ],
       ),
-      AmountText(
-        value,
-        style: context.text.titleMedium,
-        align: TextAlign.start,
+    );
+
+    if (data.onTap != null) {
+      content = InkWell(onTap: data.onTap, child: content);
+    }
+
+    return Semantics(
+      container: true,
+      button: data.onTap != null,
+      label: label,
+      onTap: data.onTap,
+      excludeSemantics: true,
+      child: Material(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: AppRadius.control,
+        clipBehavior: Clip.antiAlias,
+        child: content,
       ),
-    ],
-  );
+    );
+  }
 }
 
 /// Expense distribution by category (up to four plus "Other"), with labels and percentages.

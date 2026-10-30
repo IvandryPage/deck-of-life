@@ -55,83 +55,98 @@ class TaskTile extends StatelessWidget {
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AppSize.tap + 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // The overdue state also has a text label and icon.
-              AnimatedContainer(
-                duration: AppMotion.of(context, AppMotion.standard),
-                width: 3,
-                color: overdue ? scheme.error : Colors.transparent,
-              ),
-              if (onToggleDone != null)
-                SizedBox(
-                  width: AppSize.tap,
-                  child: Center(
-                    child: Checkbox(
-                      value: done,
-                      shape: const CircleBorder(),
-                      onChanged: (_) => onToggleDone!(),
-                      semanticLabel: done ? 'Reopen task' : 'Mark task done',
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // The overdue state also has a text label and icon.
+                AnimatedContainer(
+                  duration: AppMotion.of(context, AppMotion.standard),
+                  width: 3,
+                  color: overdue ? scheme.error : Colors.transparent,
+                ),
+                if (onToggleDone != null)
+                  SizedBox(
+                    width: AppSize.tap,
+                    child: Center(
+                      child: Checkbox(
+                        value: done,
+                        shape: const CircleBorder(),
+                        onChanged: (_) => onToggleDone!(),
+                        semanticLabel: done ? 'Reopen task' : 'Mark task done',
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(width: AppSpace.lg),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: dense ? AppSpace.sm : AppSpace.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AnimatedDefaultTextStyle(
+                          duration: AppMotion.of(context, AppMotion.standard),
+                          style: theme.textTheme.bodyLarge!.copyWith(
+                            color: muted
+                                ? scheme.onSurfaceVariant
+                                : scheme.onSurface,
+                            decoration: done
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                          child: Text(
+                            task.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpace.xs),
+                        Wrap(
+                          spacing: AppSpace.sm,
+                          runSpacing: AppSpace.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              meta.join(' · '),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: overdue
+                                    ? scheme.error
+                                    : scheme.onSurfaceVariant,
+                                fontWeight: overdue ? FontWeight.w600 : null,
+                              ),
+                            ),
+                            if (overdue)
+                              const StatusTag(
+                                'Overdue',
+                                icon: Icons.warning_amber,
+                                warning: true,
+                              ),
+                            if (task.isRecurring && task.isActive)
+                              const StatusTag('Repeats', icon: Icons.repeat),
+                            if (task.status == TaskStatus.needsReview)
+                              const StatusTag(
+                                'Needs review',
+                                icon: Icons.help_outline,
+                                tone: TagTone.info,
+                              ),
+                            if (task.priority.isHigh && task.isActive)
+                              StatusTag(
+                                task.priority.label,
+                                icon: Icons.flag_outlined,
+                                tone: TagTone.warning,
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                )
-              else
-                const SizedBox(width: AppSpace.lg),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: dense ? AppSpace.sm : AppSpace.md,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AnimatedDefaultTextStyle(
-                        duration: AppMotion.of(context, AppMotion.standard),
-                        style: theme.textTheme.bodyLarge!.copyWith(
-                          color: muted ? scheme.onSurfaceVariant : scheme.onSurface,
-                          decoration: done ? TextDecoration.lineThrough : null,
-                        ),
-                        child: Text(
-                          task.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpace.xs),
-                      Wrap(
-                        spacing: AppSpace.sm,
-                        runSpacing: AppSpace.xs,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            meta.join(' · '),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: overdue
-                                  ? scheme.error
-                                  : scheme.onSurfaceVariant,
-                              fontWeight: overdue ? FontWeight.w600 : null,
-                            ),
-                          ),
-                          if (overdue)
-                            const StatusTag('Overdue',
-                                icon: Icons.warning_amber, warning: true),
-                          if (task.isRecurring && task.isActive)
-                            const StatusTag('Repeats', icon: Icons.repeat),
-                          if (task.status == TaskStatus.needsReview)
-                            const StatusTag('Needs review',
-                                icon: Icons.help_outline),
-                          if (task.priority.isHigh && task.isActive)
-                            StatusTag(task.priority.label,
-                                icon: Icons.flag_outlined, tone: TagTone.warning),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpace.md),
-            ],
+                const SizedBox(width: AppSpace.md),
+              ],
+            ),
           ),
         ),
       ),

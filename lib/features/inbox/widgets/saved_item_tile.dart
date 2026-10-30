@@ -67,7 +67,11 @@ class SavedItemTile extends StatelessWidget {
               ),
             ),
           if (item.needsReview)
-            const StatusTag('Needs review', icon: Icons.help_outline),
+            const StatusTag(
+              'Needs review',
+              icon: Icons.help_outline,
+              tone: TagTone.info,
+            ),
         ],
       ),
     );

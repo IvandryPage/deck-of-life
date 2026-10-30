@@ -164,7 +164,7 @@ class _RailDestination extends StatelessWidget {
               vertical: AppSpace.xs,
             ),
             decoration: BoxDecoration(
-              color: selected ? colors.secondaryContainer : Colors.transparent,
+              color: selected ? colors.primaryContainer : Colors.transparent,
               borderRadius: AppRadius.control,
               border: selected
                   ? Border(left: BorderSide(color: colors.primary, width: 3))
@@ -177,7 +177,7 @@ class _RailDestination extends StatelessWidget {
                   icon,
                   size: AppSize.iconMd,
                   color: selected
-                      ? colors.onSecondaryContainer
+                      ? colors.onPrimaryContainer
                       : colors.onSurfaceVariant,
                 ),
                 const SizedBox(height: AppSpace.xs),
@@ -189,7 +189,7 @@ class _RailDestination extends StatelessWidget {
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
-                          ? colors.onSecondaryContainer
+                          ? colors.onPrimaryContainer
                           : colors.onSurfaceVariant,
                     ),
                   ),

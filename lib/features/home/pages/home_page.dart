@@ -417,7 +417,7 @@ class _NoteRow extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (note.needsReview) const StatusTag('New'),
+          if (note.needsReview) const StatusTag('New', tone: TagTone.info),
           const SizedBox(width: AppSpace.sm),
           Text(age, style: context.text.bodySmall),
         ],

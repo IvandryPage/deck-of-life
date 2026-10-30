@@ -50,7 +50,9 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
   Future<void> _load() async {
     try {
       final item = await _items.getById(_id);
-      final linked = item == null ? <Task>[] : await _tasks.tasksForSavedItem(_id);
+      final linked = item == null
+          ? <Task>[]
+          : await _tasks.tasksForSavedItem(_id);
       if (!mounted) return;
       setState(() {
         _item = item;
@@ -79,11 +81,13 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
 
   Future<void> _linkExistingTask() async {
     final linkedIds = _linked.map((t) => t.id).toSet();
-    final all = await _tasks.list(statuses: {
-      TaskStatus.needsReview,
-      TaskStatus.todo,
-      TaskStatus.inProgress,
-    });
+    final all = await _tasks.list(
+      statuses: {
+        TaskStatus.needsReview,
+        TaskStatus.todo,
+        TaskStatus.inProgress,
+      },
+    );
     final options = all.where((t) => !linkedIds.contains(t.id)).toList();
     if (!mounted) return;
     if (options.isEmpty) {
@@ -107,7 +111,9 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
             for (final t in options)
               ListTile(
                 title: Text(t.title),
-                subtitle: t.dueAt == null ? null : Text(Formatters.dateTime(t.dueAt!)),
+                subtitle: t.dueAt == null
+                    ? null
+                    : Text(Formatters.dateTime(t.dueAt!)),
                 onTap: () => Navigator.of(ctx).pop(t),
               ),
           ],
@@ -129,9 +135,13 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
     }
     try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok) AppToast.show('No app is available to open this link.', isError: true);
+      if (!ok)
+        AppToast.show('No app is available to open this link.', isError: true);
     } catch (_) {
-      AppToast.show('Could not open the link. You may be offline.', isError: true);
+      AppToast.show(
+        'Could not open the link. You may be offline.',
+        isError: true,
+      );
     }
   }
 
@@ -196,10 +206,16 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
             },
             itemBuilder: (_) => [
               if (item.reviewStatus == ReviewStatus.archived)
-                const PopupMenuItem(value: 'unarchive', child: Text('Restore from Archive'))
+                const PopupMenuItem(
+                  value: 'unarchive',
+                  child: Text('Restore from Archive'),
+                )
               else
                 const PopupMenuItem(value: 'archive', child: Text('Archive')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete permanently')),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete permanently'),
+              ),
             ],
           ),
         ],
@@ -214,8 +230,11 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
             runSpacing: 6,
             children: [
               StatusTag(item.itemType.label),
-              StatusTag(item.reviewStatus.label,
-                  icon: item.needsReview ? Icons.help_outline : null),
+              StatusTag(
+                item.reviewStatus.label,
+                icon: item.needsReview ? Icons.help_outline : null,
+                tone: item.needsReview ? TagTone.info : null,
+              ),
               if (item.courseName != null) StatusTag(item.courseName!),
               if (item.groupName != null) StatusTag(item.groupName!),
             ],
@@ -228,8 +247,12 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.link),
-                title: Text(item.sourceUrl!, maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle:                 const Text('Source link (content is not saved)'),
+                title: Text(
+                  item.sourceUrl!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: const Text('Source link (content is not saved)'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -237,7 +260,9 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
                       tooltip: 'Copy link',
                       icon: const Icon(Icons.copy),
                       onPressed: () async {
-                        await Clipboard.setData(ClipboardData(text: item.sourceUrl!));
+                        await Clipboard.setData(
+                          ClipboardData(text: item.sourceUrl!),
+                        );
                         AppToast.show('Link copied');
                       },
                     ),
@@ -252,8 +277,10 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
             ),
           ],
           const SizedBox(height: 16),
-          if (item.sourceLabel != null) KeyValueRow('Source', item.sourceLabel!),
-          if (item.contextNote != null) KeyValueRow('Context', item.contextNote!),
+          if (item.sourceLabel != null)
+            KeyValueRow('Source', item.sourceLabel!),
+          if (item.contextNote != null)
+            KeyValueRow('Context', item.contextNote!),
           KeyValueRow('Saved', Formatters.dateTime(item.createdAt)),
           if (item.updatedAt.difference(item.createdAt).inMinutes > 0)
             KeyValueRow('Edited', Formatters.dateTime(item.updatedAt)),
@@ -272,15 +299,17 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
           const SizedBox(height: 4),
           Text(
             'Saving a note does not automatically create a task.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           for (final t in _linked)
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(t.title),
               subtitle: Text(t.status.label),
-              onTap: () => Get.toNamed<dynamic>(Routes.taskDetail, arguments: t.id),
+              onTap: () =>
+                  Get.toNamed<dynamic>(Routes.taskDetail, arguments: t.id),
               trailing: IconButton(
                 tooltip: 'Unlink task',
                 icon: const Icon(Icons.link_off),

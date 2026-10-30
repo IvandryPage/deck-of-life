@@ -5,8 +5,9 @@ import '../../app/design/tokens.dart';
 import '../errors/app_exception.dart';
 
 /// Safe, user-facing error messages never expose raw SQL.
-String messageOf(Object error) =>
-    error is AppException ? error.message : 'Something went wrong. Please try again.';
+String messageOf(Object error) => error is AppException
+    ? error.message
+    : 'Something went wrong. Please try again.';
 
 class AppToast {
   const AppToast._();
@@ -21,40 +22,48 @@ class AppToast {
     final ctx = Get.context;
     final scheme = ctx == null ? null : Theme.of(ctx).colorScheme;
     if (Get.isSnackbarOpen) Get.closeCurrentSnackbar();
-    Get.showSnackbar(GetSnackBar(
-      messageText: Semantics(
-        liveRegion: true,
-        child: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? (scheme?.onError ?? Colors.white)
-                : (scheme?.onInverseSurface ?? Colors.white),
+    Get.showSnackbar(
+      GetSnackBar(
+        messageText: Semantics(
+          liveRegion: true,
+          child: Text(
+            message,
+            style: TextStyle(
+              color: isError
+                  ? (scheme?.onError ?? Colors.white)
+                  : (scheme?.onInverseSurface ?? Colors.white),
+            ),
           ),
         ),
+        duration: Duration(seconds: isError ? 5 : (onAction != null ? 5 : 3)),
+        animationDuration: AppMotion.standard,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          0,
+          AppSpace.md,
+          AppSpace.md,
+        ),
+        borderRadius: AppRadius.md,
+        backgroundColor: isError
+            ? (scheme?.error ?? const Color(0xFFC0392B))
+            : (scheme?.inverseSurface ?? const Color(0xFF3A2E25)),
+        mainButton: (actionLabel != null && onAction != null)
+            ? TextButton(
+                onPressed: () {
+                  Get.closeCurrentSnackbar();
+                  onAction();
+                },
+                child: Text(
+                  actionLabel,
+                  style: TextStyle(
+                    color: scheme?.inversePrimary ?? Colors.white,
+                  ),
+                ),
+              )
+            : null,
       ),
-      duration: Duration(seconds: isError ? 5 : (onAction != null ? 5 : 3)),
-      animationDuration: AppMotion.standard,
-      snackPosition: SnackPosition.BOTTOM,
-      margin: const EdgeInsets.fromLTRB(
-          AppSpace.md, 0, AppSpace.md, AppSpace.md),
-      borderRadius: AppRadius.md,
-      backgroundColor: isError
-          ? (scheme?.error ?? const Color(0xFF8C1D18))
-          : (scheme?.inverseSurface ?? const Color(0xFF2F3B3A)),
-      mainButton: (actionLabel != null && onAction != null)
-          ? TextButton(
-              onPressed: () {
-                Get.closeCurrentSnackbar();
-                onAction();
-              },
-              child: Text(
-                actionLabel,
-                style: TextStyle(color: scheme?.inversePrimary ?? Colors.white),
-              ),
-            )
-          : null,
-    ));
+    );
   }
 
   /// Success feedback with an Undo action.
@@ -129,21 +138,28 @@ class EmptyState extends StatelessWidget {
             width: AppSize.avatarIcon + 8,
             height: AppSize.avatarIcon + 8,
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHigh,
+              color: theme.colorScheme.primaryContainer,
               borderRadius: AppRadius.control,
             ),
-            child: Icon(icon,
-                size: AppSize.iconMd, color: theme.colorScheme.onSurfaceVariant),
+            child: Icon(
+              icon,
+              size: AppSize.iconMd,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
           ),
           const SizedBox(height: AppSpace.md),
-          Text(title,
-              style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
           if (message != null) ...[
             const SizedBox(height: AppSpace.xs),
             Text(
               message!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -154,7 +170,9 @@ class EmptyState extends StatelessWidget {
         ],
       ),
     );
-    return compact ? content : Center(child: SingleChildScrollView(child: content));
+    return compact
+        ? content
+        : Center(child: SingleChildScrollView(child: content));
   }
 }
 
@@ -166,11 +184,11 @@ class ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => EmptyState(
-        icon: Icons.error_outline,
-        title: message,
-        actionLabel: onRetry == null ? null : 'Try again',
-        onAction: onRetry,
-      );
+    icon: Icons.error_outline,
+    title: message,
+    actionLabel: onRetry == null ? null : 'Try again',
+    onAction: onRetry,
+  );
 }
 
 /// Flat section card separated from the background by a subtle themed border.
@@ -193,7 +211,9 @@ class SectionCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.gutter, vertical: AppSpace.xs + 2),
+        horizontal: AppSpace.gutter,
+        vertical: AppSpace.xs + 2,
+      ),
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -211,7 +231,9 @@ class SectionCard extends StatelessWidget {
                         child: Text(
                           title,
                           style: theme.textTheme.titleSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ),
@@ -243,7 +265,11 @@ class SectionHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter, AppSpace.xl, AppSpace.gutter, AppSpace.xs),
+        AppSpace.gutter,
+        AppSpace.xl,
+        AppSpace.gutter,
+        AppSpace.xs,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -251,8 +277,11 @@ class SectionHeader extends StatelessWidget {
               header: true,
               child: Text(
                 count == null ? title : '$title · $count',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
           ),
@@ -263,7 +292,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-enum TagTone { neutral, urgent, warning, success }
+enum TagTone { neutral, info, urgent, warning, success }
 
 /// Status label that does not rely on color alone.
 class StatusTag extends StatelessWidget {
@@ -291,7 +320,11 @@ class StatusTag extends StatelessWidget {
       TagTone.urgent => (scheme.errorContainer, scheme.onErrorContainer),
       TagTone.warning => (sem.warningContainer, sem.warning),
       TagTone.success => (sem.incomeContainer, sem.income),
-      TagTone.neutral => (scheme.secondaryContainer, scheme.onSecondaryContainer),
+      TagTone.info => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
+      TagTone.neutral => (
+        scheme.secondaryContainer,
+        scheme.onSecondaryContainer,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 3),
@@ -308,10 +341,10 @@ class StatusTag extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: fg, fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -346,10 +379,7 @@ class AmountText extends StatelessWidget {
       child: Text(
         text,
         maxLines: 1,
-        style: base?.copyWith(
-          color: color,
-          fontFeatures: AppText.tabular,
-        ),
+        style: base?.copyWith(color: color, fontFeatures: AppText.tabular),
       ),
     );
   }
@@ -429,7 +459,9 @@ class _SkeletonBoxState extends State<SkeletonBox>
             height: widget.height,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(widget.radius ?? AppRadius.sm),
+              borderRadius: BorderRadius.circular(
+                widget.radius ?? AppRadius.sm,
+              ),
             ),
           ),
         ),
@@ -446,36 +478,41 @@ class SkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        label: 'Loading',
-        child: ListView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpace.gutter),
-          itemCount: rows,
-          itemBuilder: (_, i) => const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpace.md),
-            child: Row(
-              children: [
-                SkeletonBox(width: 28, height: 28, radius: AppRadius.sm),
-                SizedBox(width: AppSpace.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SkeletonBox(height: 14),
-                      SizedBox(height: AppSpace.sm),
-                      SkeletonBox(width: 120, height: 12),
-                    ],
-                  ),
-                ),
-              ],
+    label: 'Loading',
+    child: ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(AppSpace.gutter),
+      itemCount: rows,
+      itemBuilder: (_, i) => const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpace.md),
+        child: Row(
+          children: [
+            SkeletonBox(width: 28, height: 28, radius: AppRadius.sm),
+            SizedBox(width: AppSpace.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonBox(height: 14),
+                  SizedBox(height: AppSpace.sm),
+                  SkeletonBox(width: 120, height: 12),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class KeyValueRow extends StatelessWidget {
-  const KeyValueRow(this.label, this.value, {super.key, this.emphasize = false});
+  const KeyValueRow(
+    this.label,
+    this.value, {
+    super.key,
+    this.emphasize = false,
+  });
 
   final String label;
   final String value;
@@ -492,8 +529,9 @@ class KeyValueRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -502,10 +540,12 @@ class KeyValueRow extends StatelessWidget {
               value,
               textAlign: TextAlign.end,
               style: emphasize
-                  ? theme.textTheme.titleMedium
-                      ?.copyWith(fontFeatures: AppText.tabular)
-                  : theme.textTheme.bodyMedium
-                      ?.copyWith(fontFeatures: AppText.tabular),
+                  ? theme.textTheme.titleMedium?.copyWith(
+                      fontFeatures: AppText.tabular,
+                    )
+                  : theme.textTheme.bodyMedium?.copyWith(
+                      fontFeatures: AppText.tabular,
+                    ),
             ),
           ),
         ],

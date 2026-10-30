@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon notifikasi dirujuk lewat nama resource dari Dart, jadi resource
+     shrinker tidak bisa melihat pemakaiannya dan akan menghapusnya di build
+     rilis. Tanpa ini, notifikasi gagal tampil setelah aplikasi di-install. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_notify" />

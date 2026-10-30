@@ -50,7 +50,8 @@ abstract class AppSize {
   static const double iconLg = 32;
   static const double avatarIcon = 40;
   static const double calendarCell = 44;
-  static const double maxContentWidth = 640; // layar lebar: konten tidak melebar
+  static const double maxContentWidth =
+      640; // layar lebar: konten tidak melebar
 }
 
 // ---------------------------------------------------------------------------
@@ -94,19 +95,35 @@ abstract class AppText {
   static const List<FontFeature> tabular = [FontFeature.tabularFigures()];
 
   static TextTheme build(TextTheme base, Color onSurface) {
-    TextStyle s(TextStyle? b, double size, FontWeight w,
-            {double? height, double? spacing}) =>
-        (b ?? const TextStyle()).copyWith(
-          fontSize: size,
-          fontWeight: w,
-          height: height,
-          letterSpacing: spacing,
-          color: onSurface,
-        );
+    TextStyle s(
+      TextStyle? b,
+      double size,
+      FontWeight w, {
+      double? height,
+      double? spacing,
+    }) => (b ?? const TextStyle()).copyWith(
+      fontSize: size,
+      fontWeight: w,
+      height: height,
+      letterSpacing: spacing,
+      color: onSurface,
+    );
     return base.copyWith(
       // Angka hero (saldo)
-      displaySmall: s(base.displaySmall, 34, FontWeight.w700, height: 1.1, spacing: -0.5),
-      headlineMedium: s(base.headlineMedium, 26, FontWeight.w700, height: 1.2, spacing: -0.3),
+      displaySmall: s(
+        base.displaySmall,
+        34,
+        FontWeight.w700,
+        height: 1.1,
+        spacing: -0.5,
+      ),
+      headlineMedium: s(
+        base.headlineMedium,
+        26,
+        FontWeight.w700,
+        height: 1.2,
+        spacing: -0.3,
+      ),
       headlineSmall: s(base.headlineSmall, 22, FontWeight.w700, height: 1.25),
       titleLarge: s(base.titleLarge, 20, FontWeight.w600, height: 1.3),
       titleMedium: s(base.titleMedium, 16, FontWeight.w600, height: 1.35),
@@ -148,24 +165,24 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color urgent;
 
   static const light = AppSemanticColors(
-    income: Color(0xFF14724A),
-    incomeContainer: Color(0xFFD7F0E3),
-    expense: Color(0xFFB3261E),
-    expenseContainer: Color(0xFFFBE0DD),
-    warning: Color(0xFF8A5A00),
-    warningContainer: Color(0xFFFFEBC2),
-    success: Color(0xFF14724A),
-    urgent: Color(0xFFB3261E),
+    income: Color(0xFF0F7B4D),
+    incomeContainer: Color(0xFFCFF5E1),
+    expense: Color(0xFFC0392B),
+    expenseContainer: Color(0xFFFFDAD4),
+    warning: Color(0xFF986000),
+    warningContainer: Color(0xFFFFE8B8),
+    success: Color(0xFF0F7B4D),
+    urgent: Color(0xFFC0392B),
   );
 
   static const dark = AppSemanticColors(
-    income: Color(0xFF7FD6A8),
-    incomeContainer: Color(0xFF123D2B),
+    income: Color(0xFF74DDA7),
+    incomeContainer: Color(0xFF0B3B26),
     expense: Color(0xFFFFB4AB),
-    expenseContainer: Color(0xFF5A1C17),
-    warning: Color(0xFFFFCB66),
-    warningContainer: Color(0xFF4A3300),
-    success: Color(0xFF7FD6A8),
+    expenseContainer: Color(0xFF5C1A16),
+    warning: Color(0xFFFFD181),
+    warningContainer: Color(0xFF4C3600),
+    success: Color(0xFF74DDA7),
     urgent: Color(0xFFFFB4AB),
   );
 
@@ -179,17 +196,16 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? warningContainer,
     Color? success,
     Color? urgent,
-  }) =>
-      AppSemanticColors(
-        income: income ?? this.income,
-        incomeContainer: incomeContainer ?? this.incomeContainer,
-        expense: expense ?? this.expense,
-        expenseContainer: expenseContainer ?? this.expenseContainer,
-        warning: warning ?? this.warning,
-        warningContainer: warningContainer ?? this.warningContainer,
-        success: success ?? this.success,
-        urgent: urgent ?? this.urgent,
-      );
+  }) => AppSemanticColors(
+    income: income ?? this.income,
+    incomeContainer: incomeContainer ?? this.incomeContainer,
+    expense: expense ?? this.expense,
+    expenseContainer: expenseContainer ?? this.expenseContainer,
+    warning: warning ?? this.warning,
+    warningContainer: warningContainer ?? this.warningContainer,
+    success: success ?? this.success,
+    urgent: urgent ?? this.urgent,
+  );
 
   @override
   AppSemanticColors lerp(AppSemanticColors? other, double t) {
@@ -198,9 +214,17 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       income: Color.lerp(income, other.income, t)!,
       incomeContainer: Color.lerp(incomeContainer, other.incomeContainer, t)!,
       expense: Color.lerp(expense, other.expense, t)!,
-      expenseContainer: Color.lerp(expenseContainer, other.expenseContainer, t)!,
+      expenseContainer: Color.lerp(
+        expenseContainer,
+        other.expenseContainer,
+        t,
+      )!,
       warning: Color.lerp(warning, other.warning, t)!,
-      warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
+      warningContainer: Color.lerp(
+        warningContainer,
+        other.warningContainer,
+        t,
+      )!,
       success: Color.lerp(success, other.success, t)!,
       urgent: Color.lerp(urgent, other.urgent, t)!,
     );

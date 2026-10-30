@@ -98,10 +98,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     if (task == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const EmptyState(
-          icon: Icons.search_off,
-          title: 'Task not found',
-        ),
+        body: const EmptyState(icon: Icons.search_off, title: 'Task not found'),
       );
     }
     final theme = Theme.of(context);
@@ -169,6 +166,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 task.status.label,
                 icon: task.status == TaskStatus.needsReview
                     ? Icons.help_outline
+                    : null,
+                tone: task.status == TaskStatus.needsReview
+                    ? TagTone.info
                     : null,
               ),
               if (overdue)

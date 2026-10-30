@@ -40,11 +40,8 @@ class FinanceController extends GetxController with DataMutations {
   final RxList<Bill> paidBills = <Bill>[].obs;
   final RxList<MoneyTransaction> transactions = <MoneyTransaction>[].obs;
   final Rxn<FinanceSummary> summary = Rxn<FinanceSummary>();
-  final Rxn<IncomeTarget> target = Rxn<IncomeTarget>();
   final Rxn<RealityCheck> reality = Rxn<RealityCheck>();
   final RxInt horizonDays = 30.obs;
-  final RxnInt workdays = RxnInt();
-  final RxInt confirmedIncome = 0.obs;
   final RxBool isLoading = true.obs;
   final RxnString lastUsedAccountId = RxnString();
 
@@ -68,14 +65,6 @@ class FinanceController extends GetxController with DataMutations {
       final unpaid = await _finance.bills(statuses: {BillStatus.unpaid});
       final paid = await _finance.bills(statuses: {BillStatus.paid});
       paid.sort((a, b) => (b.paidAt ?? b.dueAt).compareTo(a.paidAt ?? a.dueAt));
-      final days = int.tryParse(
-        await _settings.get(SettingKeys.availableWorkdays) ?? '',
-      );
-      final income =
-          int.tryParse(
-            await _settings.get(SettingKeys.confirmedIncome) ?? '',
-          ) ??
-          0;
 
       final s = FinanceCalculator.summarize(acc, unpaid);
       accounts.assignAll(acc);
@@ -86,26 +75,19 @@ class FinanceController extends GetxController with DataMutations {
       lastUsedAccountId.value =
           await _settings.get(SettingKeys.lastUsedFinanceAccountId) ??
           (recent.isEmpty ? null : recent.first.accountId);
-      workdays.value = days;
-      confirmedIncome.value = income;
       summary.value = s;
       horizonDays.value =
           int.tryParse(
             await _settings.get(SettingKeys.financeHorizonDays) ?? '',
           ) ??
           30;
-      // Target memakai kewajiban dalam horizon saja (terlambat + jatuh tempo
-      // dalam N hari); tagihan jauh tidak membesarkan target hari ini.
       final rc = RealityCheck.compute(
         accounts: acc,
         bills: unpaid,
         now: DateTime.now(),
         horizonDays: horizonDays.value,
-        confirmedIncome: income,
-        workdays: days,
       );
       reality.value = rc;
-      target.value = rc.target;
     } catch (e, st) {
       AppLog.error('finance.load', e, st);
       errorMessage.value = messageOf(e);
@@ -329,20 +311,6 @@ class FinanceController extends GetxController with DataMutations {
     () => _settings.set(SettingKeys.financeHorizonDays, days.toString()),
   );
 
-  // ---- Asumsi target pendapatan -------------------------------------------
-
-  Future<bool> setWorkdays(int? days) => mutate(() async {
-    if (days == null) {
-      await _settings.remove(SettingKeys.availableWorkdays);
-    } else {
-      await _settings.set(SettingKeys.availableWorkdays, days.toString());
-    }
-  });
-
-  Future<bool> setConfirmedIncome(int amount) => mutate(
-    () => _settings.set(SettingKeys.confirmedIncome, amount.toString()),
-  );
-
   /// Transaksi setelah filter jenis dan pencarian (kategori, catatan, akun).
   List<MoneyTransaction> get filteredTransactions {
     final dir = txnFilter.value;
@@ -358,14 +326,14 @@ class FinanceController extends GetxController with DataMutations {
 
   /// Ringkasan bulan berjalan dari transaksi yang DICATAT (opsional), bukan
   /// seluruh arus kas; label di UI menyebutkan hal itu.
-  ({int income, int expense, Map<String, int> byCategory}) monthSummary(
-    DateTime now,
-  ) {
-    var inc = 0, exp = 0;
+  ({int income, int expense, int count, Map<String, int> byCategory})
+  monthSummary(DateTime now) {
+    var inc = 0, exp = 0, count = 0;
     final cats = <String, int>{};
     for (final t in transactions) {
       if (t.occurredAt.year != now.year || t.occurredAt.month != now.month)
         continue;
+      count++;
       if (t.direction == TransactionDirection.income) {
         inc += t.amount;
       } else {
@@ -373,6 +341,6 @@ class FinanceController extends GetxController with DataMutations {
         cats[t.category] = (cats[t.category] ?? 0) + t.amount;
       }
     }
-    return (income: inc, expense: exp, byCategory: cats);
+    return (income: inc, expense: exp, count: count, byCategory: cats);
   }
 }

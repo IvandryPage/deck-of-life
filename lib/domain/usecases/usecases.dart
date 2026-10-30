@@ -252,9 +252,7 @@ class SaveEvent {
   }) async {
     _requireText(event.title, 'Event title');
     if (event.endsAt != null && event.endsAt!.isBefore(event.startsAt)) {
-      throw const ValidationException(
-        'End time cannot be before start time.',
-      );
+      throw const ValidationException('End time cannot be before start time.');
     }
     if (isNew) {
       await _events.create(event);
@@ -380,9 +378,7 @@ class MarkBillPaid {
   Future<void> undo() async {
     final undo = _undo;
     if (undo == null) {
-      throw const ValidationException(
-        'There is no payment to undo.',
-      );
+      throw const ValidationException('There is no payment to undo.');
     }
     final reminderIds = await _finance.undoBillPayment(
       undo.billId,
@@ -442,7 +438,9 @@ class SaveRoutine {
     _requireText(routine.title, 'Routine name');
     if (routine.recurrenceType == RecurrenceType.interval &&
         (routine.intervalDays == null || routine.intervalDays! < 1)) {
-      throw const ValidationException('Repeat interval must be at least 1 day.');
+      throw const ValidationException(
+        'Repeat interval must be at least 1 day.',
+      );
     }
     if (routine.recurrenceType == RecurrenceType.weekly &&
         routine.weekdays.isEmpty) {
@@ -658,19 +656,11 @@ class GetDashboard {
           await _settings.get(SettingKeys.financeHorizonDays) ?? '',
         ) ??
         30;
-    final workdays = int.tryParse(
-      await _settings.get(SettingKeys.availableWorkdays) ?? '',
-    );
-    final income =
-        int.tryParse(await _settings.get(SettingKeys.confirmedIncome) ?? '') ??
-        0;
     final reality = RealityCheck.compute(
       accounts: accounts,
       bills: unpaid,
       now: n,
       horizonDays: horizon,
-      confirmedIncome: income,
-      workdays: workdays,
     );
 
     final routines =

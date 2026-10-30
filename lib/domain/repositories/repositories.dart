@@ -182,8 +182,6 @@ abstract interface class SettingsRepository {
 class SettingKeys {
   const SettingKeys._();
 
-  static const availableWorkdays = 'available_workdays';
-  static const confirmedIncome = 'confirmed_income';
   static const postWorkReviewEnabled = 'post_work_review_enabled';
   static const postWorkReviewTime = 'post_work_review_time'; // "HH:mm"
   static const financeHorizonDays = 'finance_horizon_days';
