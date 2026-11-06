@@ -46,6 +46,27 @@ void main() {
   tearDown(() async => db.close());
 
   group('SavedItem', () {
+    test('lampiran tersimpan dan terhapus bersama catatan', () async {
+      await items.create(makeItem('with-attachment'));
+      final attachment = SavedItemAttachment(
+        id: 'attachment-1',
+        savedItemId: 'with-attachment',
+        fileName: 'brief.pdf',
+        mimeType: 'application/pdf',
+        contentBase64: 'aGVsbG8=',
+        sizeBytes: 5,
+        createdAt: t0,
+      );
+      await items.addAttachment(attachment);
+
+      expect(
+        (await items.attachmentsFor('with-attachment')).single.contentBase64,
+        attachment.contentBase64,
+      );
+      await items.deletePermanently('with-attachment');
+      expect(await items.attachmentsFor('with-attachment'), isEmpty);
+    });
+
     test('simpan, baca, ubah, arsip', () async {
       await items.create(makeItem('a', content: 'isi', course: 'Basis Data'));
       final read = await items.getById('a');
@@ -132,6 +153,23 @@ void main() {
   });
 
   group('Task', () {
+    test('menyimpan checklist dan status centang per langkah', () async {
+      final task = makeTask('checklist').copyWith(
+        checklist: const [
+          TaskChecklistItem(id: 'step-1', title: 'Baca instruksi'),
+          TaskChecklistItem(id: 'step-2', title: 'Kirim laporan', isDone: true),
+        ],
+      );
+      await tasks.create(task);
+
+      final saved = await tasks.getById(task.id);
+
+      expect(
+        saved!.checklist.map((step) => (step.id, step.title, step.isDone)),
+        task.checklist.map((step) => (step.id, step.title, step.isDone)),
+      );
+    });
+
     test('menghubungkan dua kali tidak membuat duplikat', () async {
       await items.create(makeItem('i'));
       await tasks.create(makeTask('t'));
@@ -749,6 +787,17 @@ void main() {
       await items.create(
         makeItem('i1', title: 'Info', content: 'isi', course: 'BD'),
       );
+      await items.addAttachment(
+        SavedItemAttachment(
+          id: 'a1',
+          savedItemId: 'i1',
+          fileName: 'catatan.pdf',
+          mimeType: 'application/pdf',
+          contentBase64: 'aGVsbG8=',
+          sizeBytes: 5,
+          createdAt: t0,
+        ),
+      );
       await tasks.create(
         makeTask('t1', due: DateTime(2026, 11, 1)),
         savedItemIds: ['i1'],
@@ -809,6 +858,12 @@ void main() {
 
         final t = TaskRepositoryImpl(target);
         expect((await t.savedItemsFor('t1')).single.id, 'i1');
+        expect(
+          (await SavedItemRepositoryImpl(
+            target,
+          ).attachmentsFor('i1')).single.contentBase64,
+          'aGVsbG8=',
+        );
         expect(
           (await EventRepositoryImpl(target).getById('e1'))!.linkedTaskId,
           't1',

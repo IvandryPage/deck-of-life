@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/errors/app_exception.dart';
 import '../../core/search/search_service.dart';
 import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/entities.dart';
@@ -13,6 +16,7 @@ class SavedItemRepositoryImpl implements SavedItemRepository {
   SavedItemRepositoryImpl(this._db);
 
   final AppDatabase _db;
+  static const int _maxAttachmentBytes = 10 * 1024 * 1024;
 
   static const List<String> _searchColumns = [
     'title',
@@ -28,20 +32,20 @@ class SavedItemRepositoryImpl implements SavedItemRepository {
 
   @override
   Future<SavedItem> create(SavedItem item) => dbGuard(() async {
-        await _db.raw.insert('saved_items', SavedItemRow.toRow(item));
-        return item;
-      });
+    await _db.raw.insert('saved_items', SavedItemRow.toRow(item));
+    return item;
+  });
 
   @override
   Future<SavedItem?> getById(String id) => dbGuard(() async {
-        final rows = await _db.raw.query(
-          'saved_items',
-          where: 'id = ?',
-          whereArgs: [id],
-          limit: 1,
-        );
-        return rows.isEmpty ? null : SavedItemRow.fromRow(rows.first);
-      });
+    final rows = await _db.raw.query(
+      'saved_items',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : SavedItemRow.fromRow(rows.first);
+  });
 
   @override
   Future<List<SavedItem>> search(
@@ -52,70 +56,73 @@ class SavedItemRepositoryImpl implements SavedItemRepository {
     bool includeArchived = false,
     int limit = 50,
     int offset = 0,
-  }) =>
-      dbGuard(() async {
-        final like = SearchService.build(query, _searchColumns);
-        final where = <String>[like.where];
-        final args = <Object?>[...like.args];
-        if (type != null) {
-          where.add('item_type = ?');
-          args.add(type.value);
-        }
-        if (courseName != null && courseName.isNotEmpty) {
-          where.add('course_name = ?');
-          args.add(courseName);
-        }
-        if (reviewStatus != null) {
-          where.add('review_status = ?');
-          args.add(reviewStatus.value);
-        } else if (!includeArchived) {
-          where.add("review_status != 'archived'");
-        }
-        final rows = await _db.raw.query(
-          'saved_items',
-          where: where.join(' AND '),
-          whereArgs: args,
-          orderBy: 'updated_at DESC',
-          limit: limit,
-          offset: offset,
-        );
-        return rows.map(SavedItemRow.fromRow).toList();
-      });
+  }) => dbGuard(() async {
+    final like = SearchService.build(query, _searchColumns);
+    final where = <String>[like.where];
+    final args = <Object?>[...like.args];
+    if (type != null) {
+      where.add('item_type = ?');
+      args.add(type.value);
+    }
+    if (courseName != null && courseName.isNotEmpty) {
+      where.add('course_name = ?');
+      args.add(courseName);
+    }
+    if (reviewStatus != null) {
+      where.add('review_status = ?');
+      args.add(reviewStatus.value);
+    } else if (!includeArchived) {
+      where.add("review_status != 'archived'");
+    }
+    final rows = await _db.raw.query(
+      'saved_items',
+      where: where.join(' AND '),
+      whereArgs: args,
+      orderBy: 'updated_at DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map(SavedItemRow.fromRow).toList();
+  });
 
   @override
   Future<void> update(SavedItem item) => dbGuard(() async {
-        final row = SavedItemRow.toRow(item)
-          ..remove('created_at')
-          ..['updated_at'] = DateTimeUtils.nowIso();
-        await _db.raw.update(
-          'saved_items',
-          row,
-          where: 'id = ?',
-          whereArgs: [item.id],
-        );
-      });
+    final row = SavedItemRow.toRow(item)
+      ..remove('created_at')
+      ..['updated_at'] = DateTimeUtils.nowIso();
+    await _db.raw.update(
+      'saved_items',
+      row,
+      where: 'id = ?',
+      whereArgs: [item.id],
+    );
+  });
 
   @override
-  Future<NotificationIds> setReviewStatus(String id, ReviewStatus status) =>
-      dbGuard(() => _db.raw.transaction((txn) async {
-            await txn.update(
-              'saved_items',
-              {
-                'review_status': status.value,
-                'archived_at': status == ReviewStatus.archived
-                    ? DateTimeUtils.nowIso()
-                    : null,
-                'updated_at': DateTimeUtils.nowIso(),
-              },
-              where: 'id = ?',
-              whereArgs: [id],
-            );
-            // Pengingat "periksa" tidak berlaku lagi setelah item ditinjau/diarsipkan.
-            if (status != ReviewStatus.needsReview) {
-              return deleteRemindersFor(txn, ReminderTargetType.savedItem, id);
-            }
-            return <int>[];
-          }));
+  Future<NotificationIds> setReviewStatus(
+    String id,
+    ReviewStatus status,
+  ) => dbGuard(
+    () => _db.raw.transaction((txn) async {
+      await txn.update(
+        'saved_items',
+        {
+          'review_status': status.value,
+          'archived_at': status == ReviewStatus.archived
+              ? DateTimeUtils.nowIso()
+              : null,
+          'updated_at': DateTimeUtils.nowIso(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      // Pengingat "periksa" tidak berlaku lagi setelah item ditinjau/diarsipkan.
+      if (status != ReviewStatus.needsReview) {
+        return deleteRemindersFor(txn, ReminderTargetType.savedItem, id);
+      }
+      return <int>[];
+    }),
+  );
 
   @override
   Future<SavedItem?> findDuplicate({String? url, String? content}) =>
@@ -144,47 +151,108 @@ class SavedItemRepositoryImpl implements SavedItemRepository {
       });
 
   @override
-  Future<NotificationIds> archive(String id, DateTime archivedAt) =>
-      dbGuard(() => _db.raw.transaction((txn) async {
-            await txn.update(
-              'saved_items',
-              {
-                'review_status': ReviewStatus.archived.value,
-                'archived_at': DateTimeUtils.toIso(archivedAt),
-                'updated_at': DateTimeUtils.nowIso(),
-              },
-              where: 'id = ?',
-              whereArgs: [id],
-            );
-            return deleteRemindersFor(txn, ReminderTargetType.savedItem, id);
-          }));
+  Future<NotificationIds> archive(String id, DateTime archivedAt) => dbGuard(
+    () => _db.raw.transaction((txn) async {
+      await txn.update(
+        'saved_items',
+        {
+          'review_status': ReviewStatus.archived.value,
+          'archived_at': DateTimeUtils.toIso(archivedAt),
+          'updated_at': DateTimeUtils.nowIso(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      return deleteRemindersFor(txn, ReminderTargetType.savedItem, id);
+    }),
+  );
 
   @override
-  Future<NotificationIds> deletePermanently(String id) =>
-      dbGuard(() => _db.raw.transaction((txn) async {
-            final ids =
-                await deleteRemindersFor(txn, ReminderTargetType.savedItem, id);
-            // task_saved_items ikut terhapus (ON DELETE CASCADE);
-            // events.linked_saved_item_id menjadi NULL (ON DELETE SET NULL).
-            await txn.delete('saved_items', where: 'id = ?', whereArgs: [id]);
-            return ids;
-          }));
+  Future<NotificationIds> deletePermanently(String id) => dbGuard(
+    () => _db.raw.transaction((txn) async {
+      final ids = await deleteRemindersFor(
+        txn,
+        ReminderTargetType.savedItem,
+        id,
+      );
+      // task_saved_items ikut terhapus (ON DELETE CASCADE);
+      // events.linked_saved_item_id menjadi NULL (ON DELETE SET NULL).
+      await txn.delete('saved_items', where: 'id = ?', whereArgs: [id]);
+      return ids;
+    }),
+  );
+
+  @override
+  Future<List<SavedItemAttachment>> attachmentsFor(String savedItemId) =>
+      dbGuard(() async {
+        final rows = await _db.raw.query(
+          'saved_item_attachments',
+          where: 'saved_item_id = ?',
+          whereArgs: [savedItemId],
+          orderBy: 'created_at ASC',
+        );
+        return rows.map(SavedItemAttachmentRow.fromRow).toList();
+      });
+
+  @override
+  Future<void> addAttachment(SavedItemAttachment attachment) =>
+      dbGuard(() async {
+        const allowedMimeTypes = {
+          'application/pdf',
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+        };
+        if (attachment.sizeBytes < 1 ||
+            attachment.sizeBytes > _maxAttachmentBytes ||
+            !allowedMimeTypes.contains(attachment.mimeType)) {
+          throw const ValidationException(
+            'Choose a supported image or PDF smaller than 10 MB.',
+          );
+        }
+        final List<int> bytes;
+        try {
+          bytes = base64Decode(attachment.contentBase64);
+        } on FormatException {
+          throw const ValidationException('Attachment data is invalid.');
+        }
+        if (bytes.length != attachment.sizeBytes) {
+          throw const ValidationException(
+            'Attachment size does not match its data.',
+          );
+        }
+        await _db.raw.insert(
+          'saved_item_attachments',
+          SavedItemAttachmentRow.toRow(attachment),
+        );
+      });
+
+  @override
+  Future<void> deleteAttachment(String id) => dbGuard(() async {
+    await _db.raw.delete(
+      'saved_item_attachments',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  });
 
   @override
   Future<int> countNeedsReview() => dbGuard(() async {
-        final n = Sqflite.firstIntValue(await _db.raw.rawQuery(
-          "SELECT COUNT(*) FROM saved_items WHERE review_status = 'needs_review'",
-        ));
-        return n ?? 0;
-      });
+    final n = Sqflite.firstIntValue(
+      await _db.raw.rawQuery(
+        "SELECT COUNT(*) FROM saved_items WHERE review_status = 'needs_review'",
+      ),
+    );
+    return n ?? 0;
+  });
 
   @override
   Future<List<String>> distinctCourseNames() => dbGuard(() async {
-        final rows = await _db.raw.rawQuery(
-          'SELECT course_name AS n FROM saved_items WHERE course_name IS NOT NULL '
-          'UNION SELECT course_name FROM tasks WHERE course_name IS NOT NULL '
-          'ORDER BY 1',
-        );
-        return rows.map((r) => r['n'] as String).toList();
-      });
+    final rows = await _db.raw.rawQuery(
+      'SELECT course_name AS n FROM saved_items WHERE course_name IS NOT NULL '
+      'UNION SELECT course_name FROM tasks WHERE course_name IS NOT NULL '
+      'ORDER BY 1',
+    );
+    return rows.map((r) => r['n'] as String).toList();
+  });
 }

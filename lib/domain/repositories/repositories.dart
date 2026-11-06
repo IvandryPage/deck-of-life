@@ -33,6 +33,9 @@ abstract interface class SavedItemRepository {
   Future<SavedItem?> findDuplicate({String? url, String? content});
   Future<NotificationIds> archive(String id, DateTime archivedAt);
   Future<NotificationIds> deletePermanently(String id);
+  Future<List<SavedItemAttachment>> attachmentsFor(String savedItemId);
+  Future<void> addAttachment(SavedItemAttachment attachment);
+  Future<void> deleteAttachment(String id);
   Future<int> countNeedsReview();
   Future<List<String>> distinctCourseNames();
 }

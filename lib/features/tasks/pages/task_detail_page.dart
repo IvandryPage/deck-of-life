@@ -86,6 +86,93 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     }
   }
 
+  Future<void> _saveChecklist(List<TaskChecklistItem> checklist) async {
+    final task = _task;
+    if (task == null) return;
+    try {
+      await _tasks.update(task.copyWith(checklist: checklist));
+      Get.find<DataRevision>().bump();
+    } catch (e, st) {
+      AppLog.error('task.checklist', e, st);
+      AppToast.show(messageOf(e), isError: true);
+    }
+  }
+
+  Future<void> _addChecklistItem() async {
+    final text = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add checklist step'),
+        content: TextField(
+          controller: text,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(labelText: 'Step'),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(text.text),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    text.dispose();
+    final title = value?.trim();
+    if (title == null || title.isEmpty || !mounted) return;
+    await _saveChecklist([
+      ...?_task?.checklist,
+      TaskChecklistItem(id: const Uuid().v4(), title: title),
+    ]);
+  }
+
+  Future<void> _linkExistingNote() async {
+    final linkedIds = _items.map((item) => item.id).toSet();
+    final notes = await Get.find<SavedItemRepository>().search('', limit: 100);
+    final options = notes
+        .where((item) => !linkedIds.contains(item.id))
+        .toList();
+    if (!mounted) return;
+    if (options.isEmpty) {
+      AppToast.show('No unlinked notes found.');
+      return;
+    }
+    final picked = await showModalBottomSheet<SavedItem>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('Link a note')),
+            for (final item in options)
+              ListTile(
+                leading: const Icon(Icons.bookmark_border),
+                title: Text(item.title),
+                subtitle: Text(item.itemType.label),
+                onTap: () => Navigator.of(context).pop(item),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    try {
+      await _tasks.linkSavedItem(_id, picked.id);
+      Get.find<DataRevision>().bump();
+      AppToast.show('Note linked');
+    } catch (e, st) {
+      AppLog.error('task.link_note', e, st);
+      AppToast.show(messageOf(e), isError: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -230,6 +317,69 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             const SizedBox(height: 16),
             SelectableText(task.description, style: theme.textTheme.bodyLarge),
           ],
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Checklist', style: theme.textTheme.titleMedium),
+              ),
+              IconButton(
+                tooltip: 'Add checklist step',
+                onPressed: _addChecklistItem,
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          if (task.checklist.isNotEmpty) ...[
+            Text(
+              '${task.checklist.where((item) => item.isDone).length} of ${task.checklist.length} steps complete',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            LinearProgressIndicator(
+              value:
+                  task.checklist.where((item) => item.isDone).length /
+                  task.checklist.length,
+            ),
+            for (final (index, item) in task.checklist.indexed)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: item.isDone,
+                title: Text(
+                  item.title,
+                  style: item.isDone
+                      ? TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          decoration: TextDecoration.lineThrough,
+                        )
+                      : null,
+                ),
+                secondary: IconButton(
+                  tooltip: 'Remove step',
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _saveChecklist([
+                    for (var i = 0; i < task.checklist.length; i++)
+                      if (i != index) task.checklist[i],
+                  ]),
+                ),
+                onChanged: (done) => _saveChecklist([
+                  for (var i = 0; i < task.checklist.length; i++)
+                    if (i == index)
+                      item.copyWith(isDone: done)
+                    else
+                      task.checklist[i],
+                ]),
+              ),
+          ] else
+            Text(
+              'Break this task into smaller steps.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           const SizedBox(height: 16),
           if (task.isActive)
             FilledButton.icon(
@@ -244,7 +394,18 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               label: const Text('Reopen task'),
             ),
           const SizedBox(height: 24),
-          Text('Linked notes', style: theme.textTheme.titleMedium),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Linked notes', style: theme.textTheme.titleMedium),
+              ),
+              IconButton(
+                tooltip: 'Link a note',
+                onPressed: _linkExistingNote,
+                icon: const Icon(Icons.link),
+              ),
+            ],
+          ),
           if (_items.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),

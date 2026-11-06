@@ -22,6 +22,29 @@ String? blankToNull(String? v) {
   return (t == null || t.isEmpty) ? null : t;
 }
 
+List<TaskChecklistItem> _checklistFromJson(String? value) {
+  if (value == null || value.isEmpty) return const [];
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is! List) return const [];
+    return decoded
+        .whereType<Map>()
+        .where((entry) {
+          return entry['id'] is String && entry['title'] is String;
+        })
+        .map((entry) {
+          return TaskChecklistItem(
+            id: entry['id'] as String,
+            title: entry['title'] as String,
+            isDone: entry['is_done'] == true,
+          );
+        })
+        .toList();
+  } on FormatException {
+    return const [];
+  }
+}
+
 class SavedItemRow {
   const SavedItemRow._();
 
@@ -87,6 +110,7 @@ class TaskRow {
     completedAt: _dn(r, 'completed_at'),
     archivedAt: _dn(r, 'archived_at'),
     recurrenceRule: _sn(r, 'recurrence_rule'),
+    checklist: _checklistFromJson(_sn(r, 'checklist_json')),
   );
 
   static DbRow toRow(Task t) => {
@@ -109,6 +133,41 @@ class TaskRow {
     'completed_at': _iso(t.completedAt),
     'archived_at': _iso(t.archivedAt),
     'recurrence_rule': blankToNull(t.recurrenceRule),
+    'checklist_json': jsonEncode(
+      t.checklist
+          .map(
+            (item) => {
+              'id': item.id,
+              'title': item.title,
+              'is_done': item.isDone,
+            },
+          )
+          .toList(),
+    ),
+  };
+}
+
+class SavedItemAttachmentRow {
+  const SavedItemAttachmentRow._();
+
+  static SavedItemAttachment fromRow(DbRow row) => SavedItemAttachment(
+    id: _s(row, 'id'),
+    savedItemId: _s(row, 'saved_item_id'),
+    fileName: _s(row, 'file_name'),
+    mimeType: _s(row, 'mime_type'),
+    contentBase64: _s(row, 'content_base64'),
+    sizeBytes: _i(row, 'size_bytes'),
+    createdAt: _d(row, 'created_at'),
+  );
+
+  static DbRow toRow(SavedItemAttachment attachment) => {
+    'id': attachment.id,
+    'saved_item_id': attachment.savedItemId,
+    'file_name': attachment.fileName,
+    'mime_type': attachment.mimeType,
+    'content_base64': attachment.contentBase64,
+    'size_bytes': attachment.sizeBytes,
+    'created_at': DateTimeUtils.toIso(attachment.createdAt),
   };
 }
 

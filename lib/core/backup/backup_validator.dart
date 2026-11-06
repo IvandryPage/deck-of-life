@@ -22,6 +22,7 @@ class BackupSchema {
   /// Urutan insert (induk lebih dulu). Urutan hapus = kebalikannya.
   static const List<String> tables = [
     'saved_items',
+    'saved_item_attachments',
     'tasks',
     'task_saved_items',
     'events',
@@ -209,6 +210,20 @@ class BackupSchema {
     },
   };
 
+  static final Map<String, Map<String, _Col>> v5 = {
+    ...v4,
+    'tasks': {...v4['tasks']!, 'checklist_json': const _Col.text()},
+    'saved_item_attachments': {
+      'id': const _Col.text(),
+      'saved_item_id': const _Col.text(),
+      'file_name': const _Col.text(),
+      'mime_type': const _Col.text(),
+      'content_base64': const _Col.text(),
+      'size_bytes': const _Col.integer(),
+      'created_at': const _Col.text(),
+    },
+  };
+
   /// SHA-256 dari `data` yang di-encode kompak. Dipakai saat ekspor dan impor.
   static String checksumOf(Object? data) =>
       sha256.convert(utf8.encode(jsonEncode(data))).toString();
@@ -285,16 +300,27 @@ class BackupValidator {
 
     final data = <String, List<Map<String, Object?>>>{};
     for (final table in BackupSchema.tables) {
+      final columns = spec[table];
+      if (columns == null && version < 5 && table == 'saved_item_attachments') {
+        final legacyRows = rawData[table];
+        if (legacyRows is List && legacyRows.isNotEmpty) {
+          throw const ImportValidationException(
+            'An older backup cannot contain saved item attachments.',
+          );
+        }
+        data[table] = [];
+        continue;
+      }
       final rows = rawData[table];
       if (rows is! List) {
         throw ImportValidationException(
           'Table "$table" is missing from the backup.',
         );
       }
-      final columns = spec[table]!;
+      final rowColumns = columns!;
       final out = <Map<String, Object?>>[];
       for (var i = 0; i < rows.length; i++) {
-        out.add(_validateRow(table, i, rows[i], columns));
+        out.add(_validateRow(table, i, rows[i], rowColumns));
       }
       data[table] = out;
     }
@@ -325,6 +351,12 @@ class BackupValidator {
         row['migrated_task_id'] = null;
       }
     }
+    if (version < 5) {
+      for (final row in data['tasks']!) {
+        row['checklist_json'] = '[]';
+      }
+      data['saved_item_attachments'] = [];
+    }
 
     return ParsedBackup(
       schemaVersion: version,
@@ -339,6 +371,7 @@ class BackupValidator {
     if (version == 2) return BackupSchema.v2;
     if (version == 3) return BackupSchema.v3;
     if (version == 4) return BackupSchema.v4;
+    if (version == 5) return BackupSchema.v5;
     throw BackupFormatException(
       'Backup schema version $version is not supported.',
     );
@@ -385,6 +418,23 @@ class BackupValidator {
         );
       }
       row[entry.key] = value;
+    }
+    if (table == 'saved_item_attachments') {
+      final size = row['size_bytes']! as int;
+      final List<int> bytes;
+      try {
+        bytes = base64Decode(row['content_base64']! as String);
+      } on FormatException catch (error) {
+        throw ImportValidationException(
+          'Attachment data in row ${index + 1} is not valid base64.',
+          error,
+        );
+      }
+      if (size < 1 || size > 10 * 1024 * 1024 || bytes.length != size) {
+        throw ImportValidationException(
+          'Attachment data in row ${index + 1} has an invalid size.',
+        );
+      }
     }
     return row;
   }
@@ -448,6 +498,9 @@ class BackupValidator {
     for (final r in data['task_saved_items']!) {
       need(tasks, r['task_id'], 'task in note link');
       need(items, r['saved_item_id'], 'note in task link');
+    }
+    for (final r in data['saved_item_attachments']!) {
+      need(items, r['saved_item_id'], 'note on saved item attachment');
     }
     for (final r in data['events']!) {
       need(tasks, r['linked_task_id'], 'task linked to event', nullable: true);

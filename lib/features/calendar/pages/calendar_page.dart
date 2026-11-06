@@ -84,39 +84,82 @@ class _MonthHeader extends GetView<CalendarController> {
   Widget build(BuildContext context) {
     return Obx(() {
       final m = controller.month.value;
-      final isCurrent = DateTimeUtils.isSameDay(
-        DateTime(m.year, m.month),
-        DateTime(DateTime.now().year, DateTime.now().month),
-      );
+      final mode = controller.viewMode.value;
+      final week = controller.visibleWeek;
+      final today = DateTimeUtils.startOfDay(DateTime.now());
+      final isCurrent = mode == CalendarViewMode.week
+          ? week.any((day) => DateTimeUtils.isSameDay(day, today))
+          : DateTimeUtils.isSameDay(
+              DateTime(m.year, m.month),
+              DateTime(DateTime.now().year, DateTime.now().month),
+            );
+      final title = mode == CalendarViewMode.week
+          ? '${Formatters.dateShort(week.first)} – ${Formatters.dateShort(week.last)}'
+          : '${_months[m.month - 1]} ${m.year}';
       return Padding(
         padding: const EdgeInsets.fromLTRB(AppSpace.sm, 0, AppSpace.sm, 0),
-        child: Row(
+        child: Column(
           children: [
-            IconButton(
-              tooltip: 'Previous month',
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () => controller.shiftMonth(-1),
-            ),
-            Expanded(
-              child: Semantics(
-                header: true,
-                liveRegion: true,
-                child: Text(
-                  '${_months[m.month - 1]} ${m.year}',
-                  textAlign: TextAlign.center,
-                  style: context.text.titleMedium,
+            Row(
+              children: [
+                IconButton(
+                  tooltip: mode == CalendarViewMode.week
+                      ? 'Previous week'
+                      : 'Previous month',
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => mode == CalendarViewMode.week
+                      ? controller.shiftWeek(-1)
+                      : controller.shiftMonth(-1),
                 ),
-              ),
+                Expanded(
+                  child: Semantics(
+                    header: true,
+                    liveRegion: true,
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.titleMedium,
+                    ),
+                  ),
+                ),
+                if (!isCurrent)
+                  TextButton(
+                    onPressed: controller.goToday,
+                    child: const Text('Today'),
+                  ),
+                IconButton(
+                  tooltip: mode == CalendarViewMode.week
+                      ? 'Next week'
+                      : 'Next month',
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => mode == CalendarViewMode.week
+                      ? controller.shiftWeek(1)
+                      : controller.shiftMonth(1),
+                ),
+              ],
             ),
-            if (!isCurrent)
-              TextButton(
-                onPressed: controller.goToday,
-                child: const Text('Today'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+              child: SegmentedButton<CalendarViewMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: CalendarViewMode.month,
+                    label: Text('Month'),
+                    icon: Icon(Icons.calendar_month_outlined),
+                  ),
+                  ButtonSegment(
+                    value: CalendarViewMode.week,
+                    label: Text('Week'),
+                    icon: Icon(Icons.view_week_outlined),
+                  ),
+                ],
+                selected: {mode},
+                showSelectedIcon: false,
+                onSelectionChanged: (value) =>
+                    controller.setViewMode(value.single),
               ),
-            IconButton(
-              tooltip: 'Next month',
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => controller.shiftMonth(1),
             ),
           ],
         ),
@@ -146,38 +189,64 @@ class _MonthGrid extends GetView<CalendarController> {
       final rows = ((lead + daysInMonth) / 7).ceil();
       final today = DateTimeUtils.startOfDay(DateTime.now());
 
-      Widget grid = Padding(
-        key: ValueKey('${m.year}-${m.month}'),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
-        child: Column(
-          children: [
-            for (var r = 0; r < rows; r++)
-              Row(
+      final weekMode = controller.viewMode.value == CalendarViewMode.week;
+      final week = controller.visibleWeek;
+      Widget grid = weekMode
+          ? Padding(
+              key: ValueKey('week-${week.first.toIso8601String()}'),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+              child: Row(
                 children: [
-                  for (var c = 0; c < 7; c++)
+                  for (final day in week)
                     Expanded(
-                      child: Builder(
-                        builder: (_) {
-                          final n = r * 7 + c - lead + 1;
-                          if (n < 1 || n > daysInMonth) {
-                            return const SizedBox(height: AppSize.calendarCell);
-                          }
-                          final d = DateTime(m.year, m.month, n);
-                          return _DayCell(
-                            date: d,
-                            isToday: DateTimeUtils.isSameDay(d, today),
-                            isSelected: DateTimeUtils.isSameDay(d, selected),
-                            markers: controller.markersOn(d),
-                            onTap: () => controller.select(d),
-                          );
-                        },
+                      child: _DayCell(
+                        date: day,
+                        isToday: DateTimeUtils.isSameDay(day, today),
+                        isSelected: DateTimeUtils.isSameDay(day, selected),
+                        markers: controller.markersOn(day),
+                        onTap: () => controller.select(day),
                       ),
                     ),
                 ],
               ),
-          ],
-        ),
-      );
+            )
+          : Padding(
+              key: ValueKey('${m.year}-${m.month}'),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+              child: Column(
+                children: [
+                  for (var r = 0; r < rows; r++)
+                    Row(
+                      children: [
+                        for (var c = 0; c < 7; c++)
+                          Expanded(
+                            child: Builder(
+                              builder: (_) {
+                                final n = r * 7 + c - lead + 1;
+                                if (n < 1 || n > daysInMonth) {
+                                  return const SizedBox(
+                                    height: AppSize.calendarCell,
+                                  );
+                                }
+                                final d = DateTime(m.year, m.month, n);
+                                return _DayCell(
+                                  date: d,
+                                  isToday: DateTimeUtils.isSameDay(d, today),
+                                  isSelected: DateTimeUtils.isSameDay(
+                                    d,
+                                    selected,
+                                  ),
+                                  markers: controller.markersOn(d),
+                                  onTap: () => controller.select(d),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            );
 
       return Column(
         children: [
@@ -338,7 +407,8 @@ class _DayAgenda extends GetView<CalendarController> {
           compact: true,
           icon: Icons.event_available_outlined,
           title: 'Nothing scheduled',
-          message: 'Your day is clear. Add an event with just a title and time.',
+          message:
+              'Your day is clear. Add an event with just a title and time.',
           actionLabel: 'Add event',
           onAction: () =>
               Get.toNamed<dynamic>(Routes.eventForm, arguments: day),

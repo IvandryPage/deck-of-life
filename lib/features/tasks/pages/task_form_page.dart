@@ -148,6 +148,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
               ).encoded,
               _ => RecurrenceRule.forDue(_repeat!, _due!).encoded,
             },
+      checklist: e?.checklist ?? const [],
     );
     try {
       final result = await Get.find<SaveTask>()(
@@ -204,9 +205,8 @@ class _TaskFormPageState extends State<TaskFormPage> {
           textInputAction: TextInputAction.next,
           style: Theme.of(context).textTheme.titleMedium,
           decoration: const InputDecoration(labelText: 'Task title'),
-          validator: (v) => (v == null || v.trim().isEmpty)
-              ? 'Task title is required'
-              : null,
+          validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Task title is required' : null,
         ),
         DateTimeField(
           label: 'Due date',
@@ -328,9 +328,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
             ),
             TextFormField(
               controller: _course,
-              decoration: const InputDecoration(
-                labelText: 'Course / category',
-              ),
+              decoration: const InputDecoration(labelText: 'Course / category'),
             ),
             TextFormField(
               controller: _group,
@@ -360,9 +358,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
             ),
             TextFormField(
               controller: _nextAction,
-              decoration: const InputDecoration(
-                labelText: 'Next action',
-              ),
+              decoration: const InputDecoration(labelText: 'Next action'),
             ),
             TextFormField(
               controller: _source,

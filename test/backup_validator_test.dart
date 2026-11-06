@@ -46,12 +46,12 @@ Map<String, Object?> _item(String id) => {
 };
 
 ParsedBackup _parse(String text) =>
-    BackupValidator.parse(text, currentSchemaVersion: 4);
+    BackupValidator.parse(text, currentSchemaVersion: 5);
 
 void main() {
   test('backup kosong yang valid diterima', () {
-    final p = _parse(_backup(schema: 4));
-    expect(p.schemaVersion, 4);
+    final p = _parse(_backup(schema: 5));
+    expect(p.schemaVersion, 5);
     expect(p.totalRows, 0);
   });
 
@@ -109,6 +109,57 @@ void main() {
     expect(upgraded.data['events']!.single['recurrence_rule'], isNull);
   });
 
+  test('backup v4 mengisi checklist kosong dan tabel lampiran baru', () {
+    final data = _emptyData();
+    data['tasks'] = [task()];
+
+    final upgraded = _parse(_backup(schema: 4, data: data));
+
+    expect(upgraded.data['tasks']!.single['checklist_json'], '[]');
+    expect(upgraded.data['saved_item_attachments'], isEmpty);
+  });
+
+  test('backup v5 menerima lampiran valid yang tertaut ke note', () {
+    final data = _emptyData();
+    data['saved_items'] = [_item('note-1')];
+    data['saved_item_attachments'] = [
+      {
+        'id': 'attachment-1',
+        'saved_item_id': 'note-1',
+        'file_name': 'brief.pdf',
+        'mime_type': 'application/pdf',
+        'content_base64': 'aGVsbG8=',
+        'size_bytes': 5,
+        'created_at': '2026-10-26T10:00:00+07:00',
+      },
+    ];
+
+    final parsed = _parse(_backup(schema: 5, data: data));
+
+    expect(parsed.countOf('saved_item_attachments'), 1);
+  });
+
+  test('backup menolak lampiran dengan ukuran tidak cocok', () {
+    final data = _emptyData();
+    data['saved_items'] = [_item('note-1')];
+    data['saved_item_attachments'] = [
+      {
+        'id': 'attachment-1',
+        'saved_item_id': 'note-1',
+        'file_name': 'brief.pdf',
+        'mime_type': 'application/pdf',
+        'content_base64': 'aGVsbG8=',
+        'size_bytes': 6,
+        'created_at': '2026-10-26T10:00:00+07:00',
+      },
+    ];
+
+    expect(
+      () => _parse(_backup(schema: 5, data: data)),
+      throwsA(isA<ImportValidationException>()),
+    );
+  });
+
   test('backup tanpa checksum tetap diterima (checksum opsional)', () {
     expect(_parse(_backup(withChecksum: false)).totalRows, 0);
   });
@@ -126,7 +177,7 @@ void main() {
 
   test('skema lebih baru dari aplikasi ditolak dengan pesan yang jelas', () {
     expect(
-      () => _parse(_backup(schema: 5)),
+      () => _parse(_backup(schema: 6)),
       throwsA(
         isA<BackupFormatException>().having(
           (e) => e.message,

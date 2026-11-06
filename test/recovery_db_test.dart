@@ -109,7 +109,17 @@ void main() {
       () async {
         final now = DateTime.now();
         final due = DateTime(now.year, now.month, now.day + 1, 9);
-        await tasks.create(recurring('t1', due, 'weekly'));
+        await tasks.create(
+          recurring('t1', due, 'weekly').copyWith(
+            checklist: const [
+              TaskChecklistItem(
+                id: 'step-1',
+                title: 'Review notes',
+                isDone: true,
+              ),
+            ],
+          ),
+        );
         await coordinator.setReminder(
           ReminderTargetType.task,
           't1',
@@ -120,6 +130,7 @@ void main() {
         final next = await change('t1', TaskStatus.done);
         expect(next, isNotNull);
         expect(next!.dueAt, DateTime(due.year, due.month, due.day + 7, 9));
+        expect(next.checklist.single.isDone, isFalse);
         expect((await tasks.getById('t1'))!.status, TaskStatus.done);
         expect(
           await reminders.getForTarget(ReminderTargetType.task, 't1'),
@@ -363,6 +374,41 @@ void main() {
   });
 
   group('Kalender', () {
+    test('mode minggu memuat agenda lintas batas bulan', () async {
+      final beforeBoundary = DateTime(2026, 10, 26, 10);
+      final afterBoundary = DateTime(2026, 11, 1, 10);
+      await events.create(
+        Event(
+          id: 'week-event',
+          title: 'Rapat',
+          startsAt: beforeBoundary,
+          createdAt: t0,
+          updatedAt: t0,
+        ),
+      );
+      await tasks.create(makeTask('week-task', due: beforeBoundary));
+      await finance.createBill(
+        makeBill('week-bill', 100000, due: afterBoundary),
+      );
+
+      final c = CalendarController(
+        events,
+        tasks,
+        finance,
+        DeleteEvent(events, coordinator),
+        DataRevision(),
+      );
+      c.selected.value = DateTime(2026, 11, 1);
+      c.viewMode.value = CalendarViewMode.week;
+      await c.load();
+
+      expect(c.visibleWeek.first, DateTime(2026, 10, 26));
+      expect(c.visibleWeek.last, DateTime(2026, 11, 1));
+      expect(c.eventsOn(beforeBoundary).single.id, 'week-event');
+      expect(c.tasksOn(beforeBoundary).single.id, 'week-task');
+      expect(c.billsOn(afterBoundary).single.id, 'week-bill');
+    });
+
     test(
       'mengelompokkan agenda, deadline tugas, dan tagihan per hari',
       () async {
@@ -407,8 +453,8 @@ void main() {
     );
   });
 
-  group('Migrasi v1 -> v4 mempertahankan data', () {
-    test('database v1 berisi data dibuka oleh aplikasi v4', () async {
+  group('Migrasi v1 -> v5 mempertahankan data', () {
+    test('database v1 berisi data dibuka oleh aplikasi v5', () async {
       final tmp = Directory.systemTemp.createTempSync('dol_mig_');
       addTearDown(() => tmp.deleteSync(recursive: true));
       final path = '${tmp.path}/v1.db';
@@ -452,7 +498,7 @@ void main() {
         ).getById('old-event'))!.recurrenceRule,
         isNull,
       );
-      expect(AppDatabase.schemaVersion, 4);
+      expect(AppDatabase.schemaVersion, 5);
     });
   });
 }

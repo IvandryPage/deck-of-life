@@ -44,6 +44,26 @@ class SavedItem {
   bool get needsReview => reviewStatus == ReviewStatus.needsReview;
 }
 
+class SavedItemAttachment {
+  const SavedItemAttachment({
+    required this.id,
+    required this.savedItemId,
+    required this.fileName,
+    required this.mimeType,
+    required this.contentBase64,
+    required this.sizeBytes,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String savedItemId;
+  final String fileName;
+  final String mimeType;
+  final String contentBase64;
+  final int sizeBytes;
+  final DateTime createdAt;
+}
+
 class Task {
   const Task({
     required this.id,
@@ -65,6 +85,7 @@ class Task {
     this.completedAt,
     this.archivedAt,
     this.recurrenceRule,
+    this.checklist = const [],
   });
 
   final String id;
@@ -88,6 +109,7 @@ class Task {
 
   /// Format: lihat `RecurrenceRule`. Null = tidak berulang.
   final String? recurrenceRule;
+  final List<TaskChecklistItem> checklist;
 
   bool get isActive => status.isActive;
   bool get isRecurring => recurrenceRule != null;
@@ -101,6 +123,7 @@ class Task {
     DateTime? updatedAt,
     DateTime? completedAt,
     bool clearCompletedAt = false,
+    List<TaskChecklistItem>? checklist,
   }) => Task(
     id: id ?? this.id,
     title: title,
@@ -121,10 +144,26 @@ class Task {
     completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
     archivedAt: archivedAt,
     recurrenceRule: recurrenceRule,
+    checklist: checklist ?? this.checklist,
   );
 
   bool isOverdue(DateTime now) =>
       isActive && dueAt != null && dueAt!.isBefore(now);
+}
+
+class TaskChecklistItem {
+  const TaskChecklistItem({
+    required this.id,
+    required this.title,
+    this.isDone = false,
+  });
+
+  final String id;
+  final String title;
+  final bool isDone;
+
+  TaskChecklistItem copyWith({bool? isDone}) =>
+      TaskChecklistItem(id: id, title: title, isDone: isDone ?? this.isDone);
 }
 
 class Event {

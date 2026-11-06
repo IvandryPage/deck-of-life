@@ -2,6 +2,7 @@ import 'migration_v1.dart';
 import 'migration_v2.dart';
 import 'migration_v3.dart';
 import 'migration_v4.dart';
+import 'migration_v5.dart';
 
 /// Daftar migration berurutan. Indeks 0 = versi 1, indeks 1 = versi 2, dst.
 /// Menambah versi = menambah satu entri di akhir; jangan mengubah entri lama
@@ -11,4 +12,5 @@ const List<List<String>> migrations = [
   migrationV2,
   migrationV3,
   migrationV4,
+  migrationV5,
 ];

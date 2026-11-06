@@ -10,6 +10,8 @@ import '../../../domain/entities/enums.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/usecases.dart';
 
+enum CalendarViewMode { month, week }
+
 /// Satu tampilan: bulan + daftar hari terpilih. Agenda, deadline tugas, dan
 /// tagihan jatuh tempo ditampilkan bersama agar distribusi waktu terlihat utuh.
 class CalendarController extends GetxController with DataMutations {
@@ -29,11 +31,13 @@ class CalendarController extends GetxController with DataMutations {
 
   final Rx<DateTime> month = _firstOfMonth(DateTime.now()).obs;
   final Rx<DateTime> selected = DateTimeUtils.startOfDay(DateTime.now()).obs;
+  final Rx<CalendarViewMode> viewMode = CalendarViewMode.month.obs;
 
   /// Arah transisi bulan (-1 mundur, 1 maju) untuk animasi geser.
   final RxInt direction = 1.obs;
 
-  final RxMap<DateTime, List<Event>> eventsByDay = <DateTime, List<Event>>{}.obs;
+  final RxMap<DateTime, List<Event>> eventsByDay =
+      <DateTime, List<Event>>{}.obs;
   final RxMap<DateTime, List<Task>> tasksByDay = <DateTime, List<Task>>{}.obs;
   final RxMap<DateTime, List<Bill>> billsByDay = <DateTime, List<Bill>>{}.obs;
 
@@ -53,15 +57,21 @@ class CalendarController extends GetxController with DataMutations {
     errorMessage.value = null;
     try {
       final m = month.value;
-      final start = DateTime(m.year, m.month, 1);
-      final end = DateTime(m.year, m.month + 1, 1);
+      final start = viewMode.value == CalendarViewMode.week
+          ? _weekStart(selected.value)
+          : DateTime(m.year, m.month, 1);
+      final end = viewMode.value == CalendarViewMode.week
+          ? start.add(const Duration(days: 7))
+          : DateTime(m.year, m.month + 1, 1);
 
       final events = await _events.listBetween(start, end);
-      final activeTasks = await _tasks.list(statuses: {
-        TaskStatus.needsReview,
-        TaskStatus.todo,
-        TaskStatus.inProgress,
-      });
+      final activeTasks = await _tasks.list(
+        statuses: {
+          TaskStatus.needsReview,
+          TaskStatus.todo,
+          TaskStatus.inProgress,
+        },
+      );
       final bills = await _finance.bills(statuses: {BillStatus.unpaid});
 
       bool inRange(DateTime d) => !d.isBefore(start) && d.isBefore(end);
@@ -93,6 +103,7 @@ class CalendarController extends GetxController with DataMutations {
   }
 
   void select(DateTime day) {
+    final previousWeek = _weekStart(selected.value);
     selected.value = DateTimeUtils.startOfDay(day);
     // Memilih hari di bulan sebelah (sel abu-abu) ikut memindahkan bulan.
     if (day.month != month.value.month || day.year != month.value.year) {
@@ -100,7 +111,41 @@ class CalendarController extends GetxController with DataMutations {
       month.value = _firstOfMonth(day);
       isLoading.value = true;
       load();
+    } else if (viewMode.value == CalendarViewMode.week &&
+        !_sameDate(previousWeek, _weekStart(selected.value))) {
+      isLoading.value = true;
+      load();
     }
+  }
+
+  bool _sameDate(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  void setViewMode(CalendarViewMode mode) {
+    if (viewMode.value == mode) return;
+    viewMode.value = mode;
+    month.value = _firstOfMonth(selected.value);
+    isLoading.value = true;
+    load();
+  }
+
+  void shiftWeek(int delta) {
+    final next = selected.value.add(Duration(days: 7 * delta));
+    direction.value = delta;
+    selected.value = DateTimeUtils.startOfDay(next);
+    month.value = _firstOfMonth(next);
+    isLoading.value = true;
+    load();
+  }
+
+  List<DateTime> get visibleWeek {
+    final start = _weekStart(selected.value);
+    return List.generate(7, (index) => start.add(Duration(days: index)));
+  }
+
+  static DateTime _weekStart(DateTime date) {
+    final day = DateTimeUtils.startOfDay(date);
+    return day.subtract(Duration(days: day.weekday - DateTime.monday));
   }
 
   void shiftMonth(int delta) {
@@ -110,7 +155,10 @@ class CalendarController extends GetxController with DataMutations {
     // Hari terpilih mengikuti bulan (tanggal sama atau hari terakhir bulan).
     final last = DateTime(month.value.year, month.value.month + 1, 0).day;
     selected.value = DateTime(
-        month.value.year, month.value.month, sel.day > last ? last : sel.day);
+      month.value.year,
+      month.value.month,
+      sel.day > last ? last : sel.day,
+    );
     isLoading.value = true;
     load();
   }
@@ -125,8 +173,7 @@ class CalendarController extends GetxController with DataMutations {
   }
 
   List<Event> eventsOn(DateTime d) =>
-      (eventsByDay[DateTimeUtils.startOfDay(d)] ?? const <Event>[])
-          .toList()
+      (eventsByDay[DateTimeUtils.startOfDay(d)] ?? const <Event>[]).toList()
         ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
   List<Task> tasksOn(DateTime d) =>
       tasksByDay[DateTimeUtils.startOfDay(d)] ?? const <Task>[];
@@ -138,7 +185,9 @@ class CalendarController extends GetxController with DataMutations {
 
   Future<bool> remove(Event e) {
     final key = DateTimeUtils.startOfDay(e.startsAt);
-    final list = (eventsByDay[key] ?? const <Event>[]).where((x) => x.id != e.id).toList();
+    final list = (eventsByDay[key] ?? const <Event>[])
+        .where((x) => x.id != e.id)
+        .toList();
     if (list.isEmpty) {
       eventsByDay.remove(key);
     } else {

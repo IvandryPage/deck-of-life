@@ -45,7 +45,8 @@ class SettingsController extends GetxController {
       notificationsEnabled.value = await _scheduler.areNotificationsEnabled();
       postWorkEnabled.value =
           await _settings.get(SettingKeys.postWorkReviewEnabled) == '1';
-      postWorkTime.value = await _settings.get(SettingKeys.postWorkReviewTime) ??
+      postWorkTime.value =
+          await _settings.get(SettingKeys.postWorkReviewTime) ??
           ReminderCoordinator.defaultPostWorkTime;
     } catch (e, st) {
       AppLog.error('settings.load', e, st);
@@ -68,7 +69,10 @@ class SettingsController extends GetxController {
       }
     } catch (e, st) {
       AppLog.error('settings.permission', e, st);
-      AppToast.show('Could not request notification permission.', isError: true);
+      AppToast.show(
+        'Could not request notification permission.',
+        isError: true,
+      );
     }
   }
 
@@ -78,7 +82,10 @@ class SettingsController extends GetxController {
         await requestNotificationPermission();
         if (!notificationsEnabled.value) return;
       }
-      await _settings.set(SettingKeys.postWorkReviewEnabled, enabled ? '1' : '0');
+      await _settings.set(
+        SettingKeys.postWorkReviewEnabled,
+        enabled ? '1' : '0',
+      );
       postWorkEnabled.value = enabled;
       await _coordinator.applyPostWorkReview();
     } catch (e, st) {
@@ -107,15 +114,19 @@ class SettingsController extends GetxController {
       final file = await _backup.exportToTempFile();
       // Berkas sengaja tidak dihapus sesudah berbagi: Android tidak memberi tahu
       // kapan aplikasi tujuan selesai membaca. Berada di cache aplikasi (privat).
-      final shared = await SharePlus.instance.share(ShareParams(
-        files: [XFile(file.path, mimeType: 'application/json')],
-        subject: 'Backup Deck of Life',
-        text: 'Backup Deck of Life',
-      ));
+      final shared = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/json')],
+          subject: 'Backup Deck of Life',
+          text: 'Backup Deck of Life',
+        ),
+      );
       // Hanya dicatat bila pengguna benar-benar memilih tujuan (bukan batal).
       if (shared.status != ShareResultStatus.dismissed) {
         await _settings.set(
-            SettingKeys.lastBackupAt, DateTime.now().toIso8601String());
+          SettingKeys.lastBackupAt,
+          DateTime.now().toIso8601String(),
+        );
         _revision.bump();
       }
     } catch (e, st) {
@@ -143,13 +154,15 @@ class SettingsController extends GetxController {
       final exported = parsed.exportedAt == null
           ? 'unknown'
           : DateTimeUtils.tryParse(parsed.exportedAt) != null
-              ? parsed.exportedAt!.split('T').first
-              : parsed.exportedAt!;
+          ? parsed.exportedAt!.split('T').first
+          : parsed.exportedAt!;
       final ok = await confirmDialog(
         context,
         title: 'Replace all data with this backup?',
-        message: 'Backup dated $exported contains '
+        message:
+            'Backup dated $exported contains '
             '${parsed.countOf('saved_items')} notes, '
+            '${parsed.countOf('saved_item_attachments')} attachments, '
             '${parsed.countOf('tasks')} tasks, ${parsed.countOf('events')} events, '
             '${parsed.countOf('bills')} bills, and ${parsed.countOf('routines')} routines.\n\n'
             'All current app data will be replaced. A safety backup of your current data will be created first.',

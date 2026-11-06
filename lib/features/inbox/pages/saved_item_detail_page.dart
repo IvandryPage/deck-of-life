@@ -1,6 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/routes/app_routes.dart';
@@ -29,7 +38,9 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
 
   SavedItem? _item;
   List<Task> _linked = const [];
+  List<SavedItemAttachment> _attachments = const [];
   bool _loading = true;
+  bool _addingAttachment = false;
   bool _missing = false;
   Worker? _worker;
 
@@ -53,10 +64,14 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
       final linked = item == null
           ? <Task>[]
           : await _tasks.tasksForSavedItem(_id);
+      final attachments = item == null
+          ? <SavedItemAttachment>[]
+          : await _items.attachmentsFor(_id);
       if (!mounted) return;
       setState(() {
         _item = item;
         _linked = linked;
+        _attachments = attachments;
         _missing = item == null;
         _loading = false;
       });
@@ -144,6 +159,161 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
       );
     }
   }
+
+  Future<void> _addAttachment() async {
+    if (_addingAttachment) return;
+    setState(() => _addingAttachment = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+        withReadStream: true,
+      );
+      final picked = result?.files.single;
+      if (picked == null) return;
+      if (picked.size > 10 * 1024 * 1024) {
+        AppToast.show(
+          'Each attachment must be 10 MB or smaller.',
+          isError: true,
+        );
+        return;
+      }
+      Uint8List? bytes = picked.bytes;
+      if (bytes == null && picked.readStream != null) {
+        final builder = BytesBuilder(copy: false);
+        await for (final chunk in picked.readStream!) {
+          if (builder.length + chunk.length > 10 * 1024 * 1024) {
+            AppToast.show(
+              'Each attachment must be 10 MB or smaller.',
+              isError: true,
+            );
+            return;
+          }
+          builder.add(chunk);
+        }
+        bytes = builder.takeBytes();
+      } else if (bytes == null && picked.path != null) {
+        bytes = await File(picked.path!).readAsBytes();
+      }
+      if (bytes == null || bytes.isEmpty) {
+        AppToast.show('Could not read the selected file.', isError: true);
+        return;
+      }
+      final extension = p.extension(picked.name).toLowerCase();
+      final mimeType = switch (extension) {
+        '.pdf' => 'application/pdf',
+        '.jpg' || '.jpeg' => 'image/jpeg',
+        '.png' => 'image/png',
+        '.webp' => 'image/webp',
+        _ => null,
+      };
+      if (mimeType == null) return;
+      await _items.addAttachment(
+        SavedItemAttachment(
+          id: const Uuid().v4(),
+          savedItemId: _id,
+          fileName: p.basename(picked.name),
+          mimeType: mimeType,
+          contentBase64: base64Encode(bytes),
+          sizeBytes: bytes.length,
+          createdAt: DateTime.now(),
+        ),
+      );
+      Get.find<DataRevision>().bump();
+      AppToast.show('Attachment added');
+    } catch (e, st) {
+      AppLog.error('savedItem.attachment.add', e, st);
+      AppToast.show(messageOf(e), isError: true);
+    } finally {
+      if (mounted) setState(() => _addingAttachment = false);
+    }
+  }
+
+  Future<void> _shareAttachment(SavedItemAttachment attachment) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final path = p.join(
+        directory.path,
+        'deck-of-life-${attachment.id}-${p.basename(attachment.fileName)}',
+      );
+      final file = File(path);
+      await file.writeAsBytes(
+        base64Decode(attachment.contentBase64),
+        flush: true,
+      );
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: attachment.mimeType)],
+          subject: attachment.fileName,
+        ),
+      );
+    } catch (e, st) {
+      AppLog.error('savedItem.attachment.share', e, st);
+      AppToast.show('Could not share this attachment.', isError: true);
+    }
+  }
+
+  Future<void> _deleteAttachment(SavedItemAttachment attachment) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Remove attachment?',
+      message: '"${attachment.fileName}" will be removed from this note.',
+      confirmLabel: 'Remove',
+      destructive: true,
+    );
+    if (!ok) return;
+    await _run(
+      () => _items.deleteAttachment(attachment.id),
+      success: 'Attachment removed',
+    );
+  }
+
+  Future<void> _previewAttachment(SavedItemAttachment attachment) =>
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(
+            attachment.fileName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          content: attachment.mimeType.startsWith('image/')
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 420),
+                  child: Image.memory(
+                    base64Decode(attachment.contentBase64),
+                    fit: BoxFit.contain,
+                  ),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.picture_as_pdf_outlined, size: 48),
+                    const SizedBox(height: 8),
+                    Text(_attachmentSize(attachment.sizeBytes)),
+                    const Text('Share the file to open it in a PDF reader.'),
+                  ],
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _shareAttachment(attachment);
+              },
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Share'),
+            ),
+          ],
+        ),
+      );
+
+  String _attachmentSize(int bytes) => bytes < 1024 * 1024
+      ? '${(bytes / 1024).ceil()} KB'
+      : '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
   @override
   Widget build(BuildContext context) {
@@ -276,6 +446,67 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
               ),
             ),
           ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Attachments', style: theme.textTheme.titleMedium),
+              ),
+              IconButton(
+                tooltip: 'Add attachment',
+                onPressed: _addingAttachment ? null : _addAttachment,
+                icon: _addingAttachment
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.attach_file),
+              ),
+            ],
+          ),
+          if (_attachments.isEmpty)
+            Text(
+              'No attachments. Add an image or PDF up to 10 MB.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          for (final attachment in _attachments)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: attachment.mimeType.startsWith('image/')
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        base64Decode(attachment.contentBase64),
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : const Icon(Icons.picture_as_pdf_outlined),
+              title: Text(
+                attachment.fileName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(_attachmentSize(attachment.sizeBytes)),
+              trailing: Wrap(
+                children: [
+                  IconButton(
+                    tooltip: 'Share attachment',
+                    icon: const Icon(Icons.share_outlined),
+                    onPressed: () => _shareAttachment(attachment),
+                  ),
+                  IconButton(
+                    tooltip: 'Remove attachment',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _deleteAttachment(attachment),
+                  ),
+                ],
+              ),
+              onTap: () => _previewAttachment(attachment),
+            ),
           const SizedBox(height: 16),
           if (item.sourceLabel != null)
             KeyValueRow('Source', item.sourceLabel!),

@@ -32,6 +32,9 @@ class _EventFormPageState extends State<EventFormPage> {
   DateTime? _reminder;
   EventType _type = EventType.other;
   RecurrenceKind? _repeat;
+  String? _linkedTaskId;
+  List<Task> _availableTasks = const [];
+  bool _tasksLoading = true;
   bool _saving = false;
   String? _timeError;
 
@@ -43,6 +46,8 @@ class _EventFormPageState extends State<EventFormPage> {
     _existing = arg is Event ? arg : null;
     final presetDay = arg is DateTime ? arg : null;
     final e = _existing;
+    _linkedTaskId = e?.linkedTaskId;
+    _loadTasks();
     if (e != null) {
       _title.text = e.title;
       _location.text = e.location ?? '';
@@ -72,6 +77,31 @@ class _EventFormPageState extends State<EventFormPage> {
     super.dispose();
   }
 
+  Future<void> _loadTasks() async {
+    try {
+      final tasks = await Get.find<TaskRepository>().list(
+        statuses: {
+          TaskStatus.needsReview,
+          TaskStatus.todo,
+          TaskStatus.inProgress,
+        },
+      );
+      final linkedId = _linkedTaskId;
+      if (linkedId != null && !tasks.any((task) => task.id == linkedId)) {
+        final linked = await Get.find<TaskRepository>().getById(linkedId);
+        if (linked != null) tasks.add(linked);
+      }
+      if (!mounted) return;
+      setState(() {
+        _availableTasks = tasks;
+        _tasksLoading = false;
+      });
+    } catch (e, st) {
+      AppLog.error('event.load_tasks', e, st);
+      if (mounted) setState(() => _tasksLoading = false);
+    }
+  }
+
   Future<void> _save() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (_start == null) {
@@ -93,7 +123,7 @@ class _EventFormPageState extends State<EventFormPage> {
       endsAt: _end,
       location: _location.text.trim().isEmpty ? null : _location.text.trim(),
       eventType: _type,
-      linkedTaskId: e?.linkedTaskId,
+      linkedTaskId: _linkedTaskId,
       linkedSavedItemId: e?.linkedSavedItemId,
       recurrenceRule: _repeat == null || _start == null
           ? null
@@ -122,6 +152,7 @@ class _EventFormPageState extends State<EventFormPage> {
       _end != null ||
       _type != EventType.other ||
       _repeat != null ||
+      _linkedTaskId != null ||
       _location.text.trim().isNotEmpty ||
       _description.text.trim().isNotEmpty;
 
@@ -201,6 +232,38 @@ class _EventFormPageState extends State<EventFormPage> {
                 if (value != null) _reminder = null;
               }),
             ),
+            if (_tasksLoading)
+              const LinearProgressIndicator()
+            else if (_availableTasks.isEmpty)
+              Text(
+                'No active tasks to link.',
+                style: Theme.of(context).textTheme.bodySmall,
+              )
+            else
+              DropdownButtonFormField<String>(
+                initialValue: _linkedTaskId ?? '',
+                decoration: const InputDecoration(labelText: 'Link to task'),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('No linked task'),
+                  ),
+                  for (final task in _availableTasks)
+                    DropdownMenuItem(
+                      value: task.id,
+                      child: Text(
+                        task.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (value) => setState(
+                  () => _linkedTaskId = value == null || value.isEmpty
+                      ? null
+                      : value,
+                ),
+              ),
             DateTimeField(
               label: 'Ends',
               value: _end,
