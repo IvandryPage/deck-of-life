@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../features/agenda/pages/event_form_page.dart';
+import '../../features/finance/pages/bill_projection_page.dart';
 import '../../features/inbox/pages/saved_item_detail_page.dart';
 import '../../features/inbox/pages/saved_item_form_page.dart';
 import '../../features/routines/bindings/routines_binding.dart';
@@ -26,10 +27,7 @@ class AppPages {
       page: () => const ShellPage(),
       binding: ShellBinding(),
     ),
-    GetPage(
-      name: Routes.savedItemForm,
-      page: () => const SavedItemFormPage(),
-    ),
+    GetPage(name: Routes.savedItemForm, page: () => const SavedItemFormPage()),
     GetPage(
       name: Routes.savedItemDetail,
       page: () => const SavedItemDetailPage(),
@@ -43,6 +41,10 @@ class AppPages {
     GetPage(name: Routes.overdue, page: () => const OverduePage()),
     GetPage(name: Routes.taskDetail, page: () => const TaskDetailPage()),
     GetPage(name: Routes.eventForm, page: () => const EventFormPage()),
+    GetPage(
+      name: Routes.financeProjection,
+      page: () => const BillProjectionPage(),
+    ),
     GetPage(
       name: Routes.routines,
       page: () => const RoutinesPage(),

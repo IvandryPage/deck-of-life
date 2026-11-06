@@ -144,68 +144,70 @@ class FinanceRepositoryImpl implements FinanceRepository {
   // ---- Ledger transactions ------------------------------------------------
 
   @override
-  Future<MoneyTransaction> addTransaction(MoneyTransaction transaction) =>
-      dbGuard(() async {
-        if (transaction.amount <= 0) {
-          throw const ValidationException('Amount must be greater than 0.');
-        }
-        if (transaction.transferId != null || transaction.billId != null) {
-          throw const ValidationException(
-            'Linked transactions can only be created through their source flow.',
-          );
-        }
-        final row = TransactionRow.toRow(transaction)..['affects_balance'] = 1;
-        await _db.raw.insert('transactions', row);
-        return MoneyTransaction(
-          id: transaction.id,
-          accountId: transaction.accountId,
-          amount: transaction.amount,
-          direction: transaction.direction,
-          category: transaction.category,
-          note: transaction.note,
-          occurredAt: transaction.occurredAt,
-          createdAt: transaction.createdAt,
-          affectsBalance: true,
-        );
-      });
+  Future<MoneyTransaction> addTransaction(
+    MoneyTransaction transaction,
+  ) => dbGuard(() async {
+    if (transaction.amount <= 0) {
+      throw const ValidationException('Amount must be greater than 0.');
+    }
+    if (transaction.transferId != null || transaction.billId != null) {
+      throw const ValidationException(
+        'Linked transactions can only be created through their source flow.',
+      );
+    }
+    final row = TransactionRow.toRow(transaction)..['affects_balance'] = 1;
+    await _db.raw.insert('transactions', row);
+    return MoneyTransaction(
+      id: transaction.id,
+      accountId: transaction.accountId,
+      amount: transaction.amount,
+      direction: transaction.direction,
+      category: transaction.category,
+      note: transaction.note,
+      occurredAt: transaction.occurredAt,
+      createdAt: transaction.createdAt,
+      affectsBalance: true,
+    );
+  });
 
   @override
-  Future<void> updateTransaction(MoneyTransaction transaction) =>
-      dbGuard(() async {
-        if (transaction.amount <= 0) {
-          throw const ValidationException('Amount must be greater than 0.');
+  Future<void> updateTransaction(MoneyTransaction transaction) => dbGuard(
+    () async {
+      if (transaction.amount <= 0) {
+        throw const ValidationException('Amount must be greater than 0.');
+      }
+      await _db.raw.transaction((txn) async {
+        final existing = await txn.query(
+          'transactions',
+          columns: ['transfer_id', 'bill_id', 'affects_balance'],
+          where: 'id = ?',
+          whereArgs: [transaction.id],
+          limit: 1,
+        );
+        if (existing.isEmpty) {
+          throw const ValidationException('Transaction not found.');
         }
-        await _db.raw.transaction((txn) async {
-          final existing = await txn.query(
-            'transactions',
-            columns: ['transfer_id', 'bill_id', 'affects_balance'],
-            where: 'id = ?',
-            whereArgs: [transaction.id],
-            limit: 1,
+        if (existing.first['transfer_id'] != null ||
+            existing.first['bill_id'] != null) {
+          throw const ValidationException(
+            'Transfer and bill transactions must be edited from their source.',
           );
-          if (existing.isEmpty) {
-            throw const ValidationException('Transaction not found.');
-          }
-          if (existing.first['transfer_id'] != null ||
-              existing.first['bill_id'] != null) {
-            throw const ValidationException(
-              'Transfer and bill transactions must be edited from their source.',
-            );
-          }
-          final row = TransactionRow.toRow(transaction)
-            ..remove('created_at')
-            ..['affects_balance'] = existing.first['affects_balance'];
-          final changed = await txn.update(
-            'transactions',
-            row,
-            where: 'id = ?',
-            whereArgs: [transaction.id],
-          );
-          if (changed != 1) {
-            throw const ValidationException('Transaction not found.');
-          }
-        });
+        }
+        final row = TransactionRow.toRow(transaction)
+          ..remove('created_at')
+          ..['affects_balance'] = existing.first['affects_balance'];
+        final changed = await txn.update(
+          'transactions',
+          row,
+          where: 'id = ?',
+          whereArgs: [transaction.id],
+        );
+        if (changed != 1) {
+          throw const ValidationException('Transaction not found.');
+        }
       });
+    },
+  );
 
   @override
   Future<void> deleteTransaction(String id) => dbGuard(() async {
@@ -386,6 +388,21 @@ class FinanceRepositoryImpl implements FinanceRepository {
         return rows.map(TransactionRow.fromRow).toList();
       });
 
+  @override
+  Future<List<MoneyTransaction>> transactionsBetween({
+    required DateTime start,
+    required DateTime end,
+  }) => dbGuard(() async {
+    if (!end.isAfter(start)) return const [];
+    final rows = await _db.raw.query(
+      'transactions',
+      where: 'occurred_at >= ? AND occurred_at < ? AND transfer_id IS NULL',
+      whereArgs: [DateTimeUtils.toIso(start), DateTimeUtils.toIso(end)],
+      orderBy: 'occurred_at DESC',
+    );
+    return rows.map(TransactionRow.fromRow).toList();
+  });
+
   // ---- Tagihan -------------------------------------------------------------
 
   @override
@@ -433,9 +450,7 @@ class FinanceRepositoryImpl implements FinanceRepository {
         limit: 1,
       );
       if (bills.isEmpty) {
-        throw const ValidationException(
-          'Bill not found or already paid.',
-        );
+        throw const ValidationException('Bill not found or already paid.');
       }
       final accounts = await txn.query(
         'accounts',

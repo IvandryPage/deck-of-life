@@ -139,6 +139,10 @@ abstract interface class FinanceRepository {
     String? note,
   });
   Future<List<MoneyTransaction>> recentTransactions({int limit = 30});
+  Future<List<MoneyTransaction>> transactionsBetween({
+    required DateTime start,
+    required DateTime end,
+  });
 
   Future<Bill> createBill(Bill bill);
   Future<Bill?> getBill(String id);

@@ -446,6 +446,64 @@ void main() {
       expect(restored.every((entry) => entry.affectsBalance), isTrue);
     });
 
+    test(
+      'transaksi dalam rentang lengkap dan mengecualikan transfer',
+      () async {
+        final start = DateTime(2026, 11, 1);
+        final end = DateTime(2026, 12, 1);
+        await finance.createAccount(makeAccount('a', 0));
+        final entries = [
+          for (var index = 0; index < 205; index++)
+            MoneyTransaction(
+              id: 'period-$index',
+              accountId: 'a',
+              amount: 1000,
+              direction: TransactionDirection.expense,
+              category: 'Food',
+              occurredAt: DateTime(2026, 11, 10),
+              createdAt: t0,
+            ),
+          MoneyTransaction(
+            id: 'transfer',
+            accountId: 'a',
+            amount: 5000,
+            direction: TransactionDirection.expense,
+            category: 'Transfer',
+            occurredAt: DateTime(2026, 11, 10),
+            createdAt: t0,
+            transferId: 'pair',
+          ),
+          MoneyTransaction(
+            id: 'before-period',
+            accountId: 'a',
+            amount: 6000,
+            direction: TransactionDirection.expense,
+            category: 'Food',
+            occurredAt: DateTime(2026, 10, 31, 23, 59),
+            createdAt: t0,
+          ),
+          MoneyTransaction(
+            id: 'at-end',
+            accountId: 'a',
+            amount: 7000,
+            direction: TransactionDirection.expense,
+            category: 'Food',
+            occurredAt: end,
+            createdAt: t0,
+          ),
+        ];
+        await finance.restoreTransactions(entries);
+
+        final result = await finance.transactionsBetween(
+          start: start,
+          end: end,
+        );
+
+        expect(result, hasLength(205));
+        expect(result.every((entry) => entry.transferId == null), isTrue);
+      },
+    );
+
     test('mengubah transfer memperbarui kedua wallet secara atomik', () async {
       await finance.createAccount(makeAccount('a', 500000));
       await finance.createAccount(makeAccount('b', 100000));

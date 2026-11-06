@@ -11,6 +11,8 @@ import '../../../domain/entities/logic.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/usecases.dart';
 
+enum FinanceInsightPeriod { month, last30Days, custom }
+
 class FinanceController extends GetxController with DataMutations {
   FinanceController({
     required FinanceRepository finance,
@@ -50,6 +52,21 @@ class FinanceController extends GetxController with DataMutations {
   final RxString txnQuery = ''.obs;
   final RxBool txnExpanded = false.obs;
   final RxnString errorMessage = RxnString();
+  final Rx<FinanceInsightPeriod> insightPeriod = FinanceInsightPeriod.month.obs;
+  final Rxn<({int income, int expense, int count, Map<String, int> byCategory})>
+  currentInsight = Rxn();
+  final Rxn<({int income, int expense, int count, Map<String, int> byCategory})>
+  previousInsight = Rxn();
+  final RxBool insightsLoading = false.obs;
+  DateTime? _customInsightStart;
+  DateTime? _customInsightEnd;
+  int _insightRequest = 0;
+
+  ({DateTime start, DateTime end})? get customInsightRange {
+    final start = _customInsightStart;
+    final end = _customInsightEnd;
+    return start == null || end == null ? null : (start: start, end: end);
+  }
 
   @override
   void onInit() {
@@ -88,6 +105,7 @@ class FinanceController extends GetxController with DataMutations {
         horizonDays: horizonDays.value,
       );
       reality.value = rc;
+      await refreshInsights();
     } catch (e, st) {
       AppLog.error('finance.load', e, st);
       errorMessage.value = messageOf(e);
@@ -324,9 +342,97 @@ class FinanceController extends GetxController with DataMutations {
     }).toList();
   }
 
-  /// Ringkasan bulan berjalan dari transaksi yang DICATAT (opsional), bukan
-  /// seluruh arus kas; label di UI menyebutkan hal itu.
-  ({int income, int expense, int count, Map<String, int> byCategory})
-  monthSummary(DateTime now) =>
-      FinanceCalculator.monthSummary(transactions, now);
+  Future<void> selectInsightPeriod(FinanceInsightPeriod period) async {
+    if (period == FinanceInsightPeriod.custom) return;
+    insightPeriod.value = period;
+    await refreshInsights();
+  }
+
+  Future<void> selectCustomInsightPeriod(DateTime start, DateTime end) async {
+    _customInsightStart = DateTime(start.year, start.month, start.day);
+    _customInsightEnd = DateTime(end.year, end.month, end.day);
+    insightPeriod.value = FinanceInsightPeriod.custom;
+    await refreshInsights();
+  }
+
+  Future<void> refreshInsights({DateTime? now}) async {
+    final request = ++_insightRequest;
+    final current = now ?? DateTime.now();
+    final ranges = switch (insightPeriod.value) {
+      FinanceInsightPeriod.month => _monthRanges(current),
+      FinanceInsightPeriod.last30Days => _rollingRanges(current, 30),
+      FinanceInsightPeriod.custom => _customRanges(),
+    };
+    if (ranges == null) return;
+
+    insightsLoading.value = true;
+    try {
+      final transactions = await Future.wait([
+        _finance.transactionsBetween(start: ranges.start, end: ranges.end),
+        _finance.transactionsBetween(
+          start: ranges.previousStart,
+          end: ranges.previousEnd,
+        ),
+      ]);
+      if (request != _insightRequest) return;
+      currentInsight.value = FinanceCalculator.summarizeTransactions(
+        transactions[0],
+      );
+      previousInsight.value = FinanceCalculator.summarizeTransactions(
+        transactions[1],
+      );
+    } catch (e, st) {
+      AppLog.error('finance.insights', e, st);
+    } finally {
+      if (request == _insightRequest) insightsLoading.value = false;
+    }
+  }
+
+  ({DateTime start, DateTime end, DateTime previousStart, DateTime previousEnd})
+  _monthRanges(DateTime now) {
+    final start = DateTime(now.year, now.month);
+    final end = DateTime(now.year, now.month, now.day + 1);
+    final previousMonthEnd = DateTime(now.year, now.month, 0);
+    final previousEndDay = now.day < previousMonthEnd.day
+        ? now.day
+        : previousMonthEnd.day;
+    return (
+      start: start,
+      end: end,
+      previousStart: DateTime(now.year, now.month - 1),
+      previousEnd: DateTime(now.year, now.month - 1, previousEndDay + 1),
+    );
+  }
+
+  ({DateTime start, DateTime end, DateTime previousStart, DateTime previousEnd})
+  _rollingRanges(DateTime now, int days) {
+    final end = DateTime(now.year, now.month, now.day + 1);
+    final start = end.subtract(Duration(days: days));
+    return (
+      start: start,
+      end: end,
+      previousStart: start.subtract(Duration(days: days)),
+      previousEnd: start,
+    );
+  }
+
+  ({
+    DateTime start,
+    DateTime end,
+    DateTime previousStart,
+    DateTime previousEnd,
+  })?
+  _customRanges() {
+    final start = _customInsightStart;
+    final lastDay = _customInsightEnd;
+    if (start == null || lastDay == null) return null;
+    final end = DateTime(lastDay.year, lastDay.month, lastDay.day + 1);
+    final days = end.difference(start).inDays;
+    return (
+      start: start,
+      end: end,
+      previousStart: start.subtract(Duration(days: days)),
+      previousEnd: start,
+    );
+  }
 }

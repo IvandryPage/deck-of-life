@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../app/design/tokens.dart';
+import '../../../app/routes/app_routes.dart';
 import '../../../core/utils/date_time_utils.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/common_widgets.dart';
@@ -788,6 +789,15 @@ class _BillsCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+          if (unpaid.isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => Get.toNamed<dynamic>(Routes.financeProjection),
+                icon: const Icon(Icons.timeline),
+                label: const Text('View projection'),
+              ),
+            ),
           if (paid.isNotEmpty) ...[
             const Divider(height: 24),
             Text('Paid', style: theme.textTheme.labelLarge),
@@ -1025,15 +1035,16 @@ class _TransactionInsights extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Obx(() {
-    final month = controller.monthSummary(DateTime.now());
-    if (month.income == 0 && month.expense == 0) {
-      return const SizedBox.shrink();
-    }
-    final net = month.income - month.expense;
-    final maxFlow = month.income > month.expense ? month.income : month.expense;
-    final spentPercent = month.income <= 0
+    final current = controller.currentInsight.value;
+    final previous = controller.previousInsight.value;
+    final hasActivity = current != null && current.count > 0;
+    final net = hasActivity ? current.income - current.expense : 0;
+    final maxFlow = hasActivity
+        ? (current.income > current.expense ? current.income : current.expense)
+        : 1;
+    final spentPercent = !hasActivity || current.income <= 0
         ? null
-        : (month.expense * 100 / month.income).round();
+        : (current.expense * 100 / current.income).round();
     final netTone = net < 0
         ? context.semantic.expense
         : context.semantic.income;
@@ -1048,103 +1059,180 @@ class _TransactionInsights extends StatelessWidget {
         0,
       ),
       child: SectionCard(
-        title: 'This month',
+        title: 'Cash flow',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpace.lg),
-              decoration: BoxDecoration(
-                color: netContainer,
-                borderRadius: AppRadius.control,
+            SegmentedButton<FinanceInsightPeriod>(
+              segments: const [
+                ButtonSegment(
+                  value: FinanceInsightPeriod.month,
+                  label: Text('Month'),
+                ),
+                ButtonSegment(
+                  value: FinanceInsightPeriod.last30Days,
+                  label: Text('30 days'),
+                ),
+                ButtonSegment(
+                  value: FinanceInsightPeriod.custom,
+                  label: Text('Custom'),
+                ),
+              ],
+              selected: {controller.insightPeriod.value},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) async {
+                final selected = selection.single;
+                if (selected == FinanceInsightPeriod.custom) {
+                  final now = DateTime.now();
+                  final saved = controller.customInsightRange;
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2000),
+                    lastDate: now,
+                    initialDateRange: DateTimeRange(
+                      start:
+                          saved?.start ?? now.subtract(const Duration(days: 6)),
+                      end: saved?.end ?? now,
+                    ),
+                  );
+                  if (range != null) {
+                    await controller.selectCustomInsightPeriod(
+                      range.start,
+                      range.end,
+                    );
+                  }
+                } else {
+                  await controller.selectInsightPeriod(selected);
+                }
+              },
+            ),
+            const SizedBox(height: AppSpace.md),
+            if (controller.insightsLoading.value)
+              const LinearProgressIndicator()
+            else if (!hasActivity)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
+                child: Text(
+                  'No recorded transactions in this period.',
+                  style: context.text.bodyMedium?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpace.lg),
+                decoration: BoxDecoration(
+                  color: netContainer,
+                  borderRadius: AppRadius.control,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      net < 0 ? Icons.trending_down : Icons.trending_up,
+                      color: netTone,
+                      size: AppSize.iconLg,
+                    ),
+                    const SizedBox(width: AppSpace.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'NET CASH FLOW',
+                            style: context.text.labelMedium?.copyWith(
+                              color: netTone,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpace.xs),
+                          AmountText(
+                            '${net < 0 ? '-' : '+'}${Formatters.rupiah(net.abs())}',
+                            style: context.text.headlineSmall,
+                            color: netTone,
+                            align: TextAlign.start,
+                          ),
+                          const SizedBox(height: AppSpace.xs),
+                          Text(
+                            '${current.count} recorded transactions',
+                            style: context.text.bodySmall?.copyWith(
+                              color: context.scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
+              const SizedBox(height: AppSpace.lg),
+              _CashFlowRow(
+                label: 'Income',
+                amount: current.income,
+                maximum: maxFlow,
+                color: context.semantic.income,
+                icon: Icons.south_west,
+                comparison: _periodChange(
+                  current.income,
+                  previous?.income ?? 0,
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+              _CashFlowRow(
+                label: 'Expenses',
+                amount: current.expense,
+                maximum: maxFlow,
+                color: context.semantic.expense,
+                icon: Icons.north_east,
+                comparison: _periodChange(
+                  current.expense,
+                  previous?.expense ?? 0,
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+              Row(
                 children: [
                   Icon(
-                    net < 0 ? Icons.trending_down : Icons.trending_up,
-                    color: netTone,
-                    size: AppSize.iconLg,
+                    Icons.pie_chart_outline,
+                    size: AppSize.iconSm,
+                    color: context.scheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: AppSpace.md),
+                  const SizedBox(width: AppSpace.sm),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'NET CASH FLOW',
-                          style: context.text.labelMedium?.copyWith(
-                            color: netTone,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpace.xs),
-                        AmountText(
-                          '${net < 0 ? '-' : '+'}${Formatters.rupiah(net.abs())}',
-                          style: context.text.headlineSmall,
-                          color: netTone,
-                          align: TextAlign.start,
-                        ),
-                        const SizedBox(height: AppSpace.xs),
-                        Text(
-                          '${month.count} recorded transactions',
-                          style: context.text.bodySmall?.copyWith(
-                            color: context.scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      spentPercent == null
+                          ? 'No recorded income to compare'
+                          : 'Spent $spentPercent% of recorded income',
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.scheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: AppSpace.lg),
-            _CashFlowRow(
-              label: 'Income',
-              amount: month.income,
-              maximum: maxFlow,
-              color: context.semantic.income,
-              icon: Icons.south_west,
-            ),
-            const SizedBox(height: AppSpace.md),
-            _CashFlowRow(
-              label: 'Expenses',
-              amount: month.expense,
-              maximum: maxFlow,
-              color: context.semantic.expense,
-              icon: Icons.north_east,
-            ),
-            const SizedBox(height: AppSpace.md),
-            Row(
-              children: [
-                Icon(
-                  Icons.pie_chart_outline,
-                  size: AppSize.iconSm,
-                  color: context.scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpace.sm),
-                Expanded(
-                  child: Text(
-                    spentPercent == null
-                        ? 'No recorded income to compare'
-                        : 'Spent $spentPercent% of recorded income',
-                    style: context.text.bodySmall?.copyWith(
-                      color: context.scheme.onSurfaceVariant,
-                    ),
-                  ),
+              if (current.byCategory.isNotEmpty) ...[
+                const SizedBox(height: AppSpace.md),
+                Text('Top spending categories', style: context.text.labelLarge),
+                const SizedBox(height: AppSpace.sm),
+                _CategoryBars(
+                  byCategory: current.byCategory,
+                  total: current.expense,
                 ),
               ],
-            ),
-            if (month.byCategory.isNotEmpty) ...[
-              const SizedBox(height: AppSpace.md),
-              Text('Top spending categories', style: context.text.labelLarge),
-              const SizedBox(height: AppSpace.sm),
-              _CategoryBars(byCategory: month.byCategory, total: month.expense),
             ],
           ],
         ),
       ),
     );
   });
+}
+
+String _periodChange(int current, int previous) {
+  if (previous == 0) return current == 0 ? 'No change' : 'New activity';
+  final difference = ((current - previous) * 100 / previous).round();
+  if (difference == 0) return 'No change';
+  final sign = difference > 0 ? '+' : '';
+  return '$sign$difference% vs previous period';
 }
 
 class _CashFlowRow extends StatelessWidget {
@@ -1154,6 +1242,7 @@ class _CashFlowRow extends StatelessWidget {
     required this.maximum,
     required this.color,
     required this.icon,
+    required this.comparison,
   });
 
   final String label;
@@ -1161,6 +1250,7 @@ class _CashFlowRow extends StatelessWidget {
   final int maximum;
   final Color color;
   final IconData icon;
+  final String comparison;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -1177,6 +1267,18 @@ class _CashFlowRow extends StatelessWidget {
             align: TextAlign.end,
           ),
         ],
+      ),
+      Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: AppSpace.xs),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            comparison,
+            style: context.text.bodySmall?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
       ),
       const SizedBox(height: AppSpace.xs),
       ClipRRect(

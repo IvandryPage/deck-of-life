@@ -50,16 +50,25 @@ class FinanceCalculator {
 
   static ({int income, int expense, int count, Map<String, int> byCategory})
   monthSummary(List<MoneyTransaction> transactions, DateTime now) {
+    return summarizeTransactions(
+      transactions
+          .where(
+            (transaction) =>
+                transaction.occurredAt.year == now.year &&
+                transaction.occurredAt.month == now.month,
+          )
+          .toList(),
+    );
+  }
+
+  static ({int income, int expense, int count, Map<String, int> byCategory})
+  summarizeTransactions(List<MoneyTransaction> transactions) {
     var income = 0;
     var expense = 0;
     var count = 0;
     final byCategory = <String, int>{};
     for (final transaction in transactions) {
-      if (transaction.transferId != null ||
-          transaction.occurredAt.year != now.year ||
-          transaction.occurredAt.month != now.month) {
-        continue;
-      }
+      if (transaction.transferId != null) continue;
       count++;
       if (transaction.direction == TransactionDirection.income) {
         income += transaction.amount;

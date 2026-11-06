@@ -26,6 +26,8 @@ abstract class Routes {
 
   static const settings = '/settings';
 
+  static const financeProjection = '/finance/bill-projection';
+
   /// Pemulihan tugas yang lewat deadline.
   static const overdue = '/tasks/overdue';
 }
