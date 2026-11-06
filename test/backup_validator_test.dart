@@ -48,6 +48,28 @@ Map<String, Object?> _item(String id) => {
 ParsedBackup _parse(String text) =>
     BackupValidator.parse(text, currentSchemaVersion: 5);
 
+Map<String, Object?> _task({bool withRule = true}) => {
+  'id': 't1',
+  'title': 'Tugas',
+  'description': '',
+  'status': 'todo',
+  'priority': 'normal',
+  'due_at': null,
+  'estimated_minutes': null,
+  'course_name': null,
+  'group_name': null,
+  'task_kind': 'individual',
+  'instruction_source': null,
+  'instruction_location': null,
+  'initiated_by': null,
+  'next_action': null,
+  'created_at': '2026-10-26T10:00:00+07:00',
+  'updated_at': '2026-10-26T10:00:00+07:00',
+  'completed_at': null,
+  'archived_at': null,
+  if (withRule) 'recurrence_rule': 'weekly',
+};
+
 void main() {
   test('backup kosong yang valid diterima', () {
     final p = _parse(_backup(schema: 5));
@@ -111,7 +133,7 @@ void main() {
 
   test('backup v4 mengisi checklist kosong dan tabel lampiran baru', () {
     final data = _emptyData();
-    data['tasks'] = [task()];
+    data['tasks'] = [_task()];
 
     final upgraded = _parse(_backup(schema: 4, data: data));
 
@@ -268,44 +290,22 @@ void main() {
     expect(p.totalRows, 2);
   });
 
-  Map<String, Object?> task({bool withRule = true}) => {
-    'id': 't1',
-    'title': 'Tugas',
-    'description': '',
-    'status': 'todo',
-    'priority': 'normal',
-    'due_at': null,
-    'estimated_minutes': null,
-    'course_name': null,
-    'group_name': null,
-    'task_kind': 'individual',
-    'instruction_source': null,
-    'instruction_location': null,
-    'initiated_by': null,
-    'next_action': null,
-    'created_at': '2026-10-26T10:00:00+07:00',
-    'updated_at': '2026-10-26T10:00:00+07:00',
-    'completed_at': null,
-    'archived_at': null,
-    if (withRule) 'recurrence_rule': 'weekly',
-  };
-
   test('backup skema 1 (tanpa recurrence_rule) tetap bisa dipulihkan', () {
     final d = _emptyData();
-    d['tasks'] = [task(withRule: false)];
+    d['tasks'] = [_task(withRule: false)];
     final p = _parse(_backup(data: d, schema: 1));
     expect(p.countOf('tasks'), 1);
   });
 
   test('backup skema 2 dengan recurrence_rule diterima', () {
     final d = _emptyData();
-    d['tasks'] = [task()];
+    d['tasks'] = [_task()];
     expect(_parse(_backup(data: d)).countOf('tasks'), 1);
   });
 
   test('skema 2 tanpa recurrence_rule ditolak (kolom wajib ada)', () {
     final d = _emptyData();
-    d['tasks'] = [task(withRule: false)];
+    d['tasks'] = [_task(withRule: false)];
     expect(
       () => _parse(_backup(data: d, schema: 2)),
       throwsA(isA<ImportValidationException>()),

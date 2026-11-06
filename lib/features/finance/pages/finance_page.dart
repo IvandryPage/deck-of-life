@@ -1308,8 +1308,7 @@ class _StatData {
     required this.icon,
     required this.tone,
     this.caption,
-    this.onTap,
-  });
+  }) : onTap = null;
 
   final String label;
   final String value;

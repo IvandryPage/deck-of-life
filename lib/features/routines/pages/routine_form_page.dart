@@ -102,7 +102,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
       intervalDays: _type == RecurrenceType.interval ? interval : null,
       weekdays: _type == RecurrenceType.weekly ? days : const [],
       preferredTime: _time,
-      nextDueAt: scheduleChanged || old == null ? null : old.nextDueAt,
+      nextDueAt: scheduleChanged ? null : old.nextDueAt,
       lastCompletedAt: old?.lastCompletedAt,
       isActive: _active,
       createdAt: old?.createdAt ?? now,

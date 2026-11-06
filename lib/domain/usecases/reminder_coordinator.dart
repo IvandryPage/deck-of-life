@@ -24,14 +24,11 @@ class ReminderOutcome {
 ///  3. kegagalan OS tidak menghapus data; hasilnya dilaporkan ke UI.
 class ReminderCoordinator {
   ReminderCoordinator({
-    required ReminderRepository reminders,
-    required NotificationScheduler scheduler,
-    required ReminderTargetLookup lookup,
-    required SettingsRepository settings,
-  }) : _reminders = reminders,
-       _scheduler = scheduler,
-       _lookup = lookup,
-       _settings = settings;
+    required this._reminders,
+    required this._scheduler,
+    required this._lookup,
+    required this._settings,
+  });
 
   final ReminderRepository _reminders;
   final NotificationScheduler _scheduler;

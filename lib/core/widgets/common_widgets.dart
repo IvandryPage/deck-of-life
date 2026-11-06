@@ -238,7 +238,7 @@ class SectionCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (trailing != null) trailing!,
+                    ?trailing,
                   ],
                 ),
                 const SizedBox(height: AppSpace.sm),
@@ -285,7 +285,7 @@ class SectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -452,7 +452,7 @@ class _SkeletonBoxState extends State<SkeletonBox>
     return ExcludeSemantics(
       child: AnimatedBuilder(
         animation: _c,
-        builder: (_, __) => Opacity(
+        builder: (_, _) => Opacity(
           opacity: 0.55 + 0.45 * _c.value,
           child: Container(
             width: widget.width,

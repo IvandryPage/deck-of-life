@@ -6,9 +6,9 @@ import '../errors/app_exception.dart';
 
 /// Definisi kolom backup per tabel untuk skema versi 1. Saat skema naik,
 /// tambahkan spesifikasi versi baru dan konversi dari versi lama (TDD bagian 11).
-class _Col {
-  const _Col.text({this.nullable = false}) : isInt = false;
-  const _Col.integer({this.nullable = false}) : isInt = true;
+class BackupColumn {
+  const BackupColumn.text({this.nullable = false}) : isInt = false;
+  const BackupColumn.integer({this.nullable = false}) : isInt = true;
 
   final bool isInt;
   final bool nullable;
@@ -36,191 +36,191 @@ class BackupSchema {
     'app_settings',
   ];
 
-  static const Map<String, Map<String, _Col>> v1 = {
+  static const Map<String, Map<String, BackupColumn>> v1 = {
     'saved_items': {
-      'id': _Col.text(),
-      'title': _Col.text(),
-      'content_text': _Col.text(),
-      'item_type': _Col.text(),
-      'source_app': _Col.text(nullable: true),
-      'source_label': _Col.text(nullable: true),
-      'source_url': _Col.text(nullable: true),
-      'source_location': _Col.text(nullable: true),
-      'course_name': _Col.text(nullable: true),
-      'group_name': _Col.text(nullable: true),
-      'context_note': _Col.text(nullable: true),
-      'review_status': _Col.text(),
-      'is_favorite': _Col.integer(),
-      'created_at': _Col.text(),
-      'updated_at': _Col.text(),
-      'archived_at': _Col.text(nullable: true),
+      'id': BackupColumn.text(),
+      'title': BackupColumn.text(),
+      'content_text': BackupColumn.text(),
+      'item_type': BackupColumn.text(),
+      'source_app': BackupColumn.text(nullable: true),
+      'source_label': BackupColumn.text(nullable: true),
+      'source_url': BackupColumn.text(nullable: true),
+      'source_location': BackupColumn.text(nullable: true),
+      'course_name': BackupColumn.text(nullable: true),
+      'group_name': BackupColumn.text(nullable: true),
+      'context_note': BackupColumn.text(nullable: true),
+      'review_status': BackupColumn.text(),
+      'is_favorite': BackupColumn.integer(),
+      'created_at': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
+      'archived_at': BackupColumn.text(nullable: true),
     },
     'tasks': {
-      'id': _Col.text(),
-      'title': _Col.text(),
-      'description': _Col.text(),
-      'status': _Col.text(),
-      'priority': _Col.text(),
-      'due_at': _Col.text(nullable: true),
-      'estimated_minutes': _Col.integer(nullable: true),
-      'course_name': _Col.text(nullable: true),
-      'group_name': _Col.text(nullable: true),
-      'task_kind': _Col.text(),
-      'instruction_source': _Col.text(nullable: true),
-      'instruction_location': _Col.text(nullable: true),
-      'initiated_by': _Col.text(nullable: true),
-      'next_action': _Col.text(nullable: true),
-      'created_at': _Col.text(),
-      'updated_at': _Col.text(),
-      'completed_at': _Col.text(nullable: true),
-      'archived_at': _Col.text(nullable: true),
+      'id': BackupColumn.text(),
+      'title': BackupColumn.text(),
+      'description': BackupColumn.text(),
+      'status': BackupColumn.text(),
+      'priority': BackupColumn.text(),
+      'due_at': BackupColumn.text(nullable: true),
+      'estimated_minutes': BackupColumn.integer(nullable: true),
+      'course_name': BackupColumn.text(nullable: true),
+      'group_name': BackupColumn.text(nullable: true),
+      'task_kind': BackupColumn.text(),
+      'instruction_source': BackupColumn.text(nullable: true),
+      'instruction_location': BackupColumn.text(nullable: true),
+      'initiated_by': BackupColumn.text(nullable: true),
+      'next_action': BackupColumn.text(nullable: true),
+      'created_at': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
+      'completed_at': BackupColumn.text(nullable: true),
+      'archived_at': BackupColumn.text(nullable: true),
     },
     'task_saved_items': {
-      'task_id': _Col.text(),
-      'saved_item_id': _Col.text(),
-      'relation_note': _Col.text(nullable: true),
+      'task_id': BackupColumn.text(),
+      'saved_item_id': BackupColumn.text(),
+      'relation_note': BackupColumn.text(nullable: true),
     },
     'events': {
-      'id': _Col.text(),
-      'title': _Col.text(),
-      'description': _Col.text(),
-      'starts_at': _Col.text(),
-      'ends_at': _Col.text(nullable: true),
-      'location': _Col.text(nullable: true),
-      'event_type': _Col.text(),
-      'linked_task_id': _Col.text(nullable: true),
-      'linked_saved_item_id': _Col.text(nullable: true),
-      'created_at': _Col.text(),
-      'updated_at': _Col.text(),
+      'id': BackupColumn.text(),
+      'title': BackupColumn.text(),
+      'description': BackupColumn.text(),
+      'starts_at': BackupColumn.text(),
+      'ends_at': BackupColumn.text(nullable: true),
+      'location': BackupColumn.text(nullable: true),
+      'event_type': BackupColumn.text(),
+      'linked_task_id': BackupColumn.text(nullable: true),
+      'linked_saved_item_id': BackupColumn.text(nullable: true),
+      'created_at': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
     },
     'reminders': {
-      'id': _Col.text(),
-      'target_type': _Col.text(),
-      'target_id': _Col.text(),
-      'remind_at': _Col.text(),
-      'repeat_rule': _Col.text(nullable: true),
-      'notification_id': _Col.integer(),
-      'is_enabled': _Col.integer(),
-      'last_scheduled_at': _Col.text(nullable: true),
-      'created_at': _Col.text(),
-      'updated_at': _Col.text(),
+      'id': BackupColumn.text(),
+      'target_type': BackupColumn.text(),
+      'target_id': BackupColumn.text(),
+      'remind_at': BackupColumn.text(),
+      'repeat_rule': BackupColumn.text(nullable: true),
+      'notification_id': BackupColumn.integer(),
+      'is_enabled': BackupColumn.integer(),
+      'last_scheduled_at': BackupColumn.text(nullable: true),
+      'created_at': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
     },
     'accounts': {
-      'id': _Col.text(),
-      'name': _Col.text(),
-      'account_type': _Col.text(),
-      'confirmed_balance': _Col.integer(),
-      'balance_confirmed_at': _Col.text(),
-      'is_active': _Col.integer(),
-      'created_at': _Col.text(),
-      'updated_at': _Col.text(),
+      'id': BackupColumn.text(),
+      'name': BackupColumn.text(),
+      'account_type': BackupColumn.text(),
+      'confirmed_balance': BackupColumn.integer(),
+      'balance_confirmed_at': BackupColumn.text(),
+      'is_active': BackupColumn.integer(),
+      'created_at': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
     },
     'transactions': {
-      'id': _Col.text(),
-      'account_id': _Col.text(),
-      'amount': _Col.integer(),
-      'direction': _Col.text(),
-      'category': _Col.text(),
-      'note': _Col.text(nullable: true),
-      'occurred_at': _Col.text(),
-      'created_at': _Col.text(),
+      'id': BackupColumn.text(),
+      'account_id': BackupColumn.text(),
+      'amount': BackupColumn.integer(),
+      'direction': BackupColumn.text(),
+      'category': BackupColumn.text(),
+      'note': BackupColumn.text(nullable: true),
+      'occurred_at': BackupColumn.text(),
+      'created_at': BackupColumn.text(),
     },
     'balance_adjustments': {
-      'id': _Col.text(),
-      'account_id': _Col.text(),
-      'previous_balance': _Col.integer(),
-      'corrected_balance': _Col.integer(),
-      'reason': _Col.text(nullable: true),
-      'adjusted_at': _Col.text(),
+      'id': BackupColumn.text(),
+      'account_id': BackupColumn.text(),
+      'previous_balance': BackupColumn.integer(),
+      'corrected_balance': BackupColumn.integer(),
+      'reason': BackupColumn.text(nullable: true),
+      'adjusted_at': BackupColumn.text(),
     },
     'bills': {
-      'id': _Col.text(),
-      'title': _Col.text(),
-      'amount': _Col.integer(),
-      'due_at': _Col.text(),
-      'status': _Col.text(),
-      'paid_at': _Col.text(nullable: true),
-      'account_id': _Col.text(nullable: true),
-      'note': _Col.text(nullable: true),
-      'created_at': _Col.text(),
-      'updated_at': _Col.text(),
+      'id': BackupColumn.text(),
+      'title': BackupColumn.text(),
+      'amount': BackupColumn.integer(),
+      'due_at': BackupColumn.text(),
+      'status': BackupColumn.text(),
+      'paid_at': BackupColumn.text(nullable: true),
+      'account_id': BackupColumn.text(nullable: true),
+      'note': BackupColumn.text(nullable: true),
+      'created_at': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
     },
     'routines': {
-      'id': _Col.text(),
-      'title': _Col.text(),
-      'description': _Col.text(),
-      'recurrence_type': _Col.text(),
-      'interval_days': _Col.integer(nullable: true),
-      'weekdays_json': _Col.text(nullable: true),
-      'preferred_time': _Col.text(nullable: true),
-      'next_due_at': _Col.text(nullable: true),
-      'last_completed_at': _Col.text(nullable: true),
-      'is_active': _Col.integer(),
-      'created_at': _Col.text(),
-      'updated_at': _Col.text(),
+      'id': BackupColumn.text(),
+      'title': BackupColumn.text(),
+      'description': BackupColumn.text(),
+      'recurrence_type': BackupColumn.text(),
+      'interval_days': BackupColumn.integer(nullable: true),
+      'weekdays_json': BackupColumn.text(nullable: true),
+      'preferred_time': BackupColumn.text(nullable: true),
+      'next_due_at': BackupColumn.text(nullable: true),
+      'last_completed_at': BackupColumn.text(nullable: true),
+      'is_active': BackupColumn.integer(),
+      'created_at': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
     },
     'routine_logs': {
-      'id': _Col.text(),
-      'routine_id': _Col.text(),
-      'completed_at': _Col.text(),
-      'note': _Col.text(nullable: true),
+      'id': BackupColumn.text(),
+      'routine_id': BackupColumn.text(),
+      'completed_at': BackupColumn.text(),
+      'note': BackupColumn.text(nullable: true),
     },
     'app_settings': {
-      'key': _Col.text(),
-      'value': _Col.text(),
-      'updated_at': _Col.text(),
+      'key': BackupColumn.text(),
+      'value': BackupColumn.text(),
+      'updated_at': BackupColumn.text(),
     },
   };
 
   /// Skema v2 = v1 + `recurrence_rule` pada tugas dan tagihan (migrasi v2).
-  static final Map<String, Map<String, _Col>> v2 = {
+  static final Map<String, Map<String, BackupColumn>> v2 = {
     ...v1,
     'tasks': {
       ...v1['tasks']!,
-      'recurrence_rule': const _Col.text(nullable: true),
+      'recurrence_rule': const BackupColumn.text(nullable: true),
     },
     'bills': {
       ...v1['bills']!,
-      'recurrence_rule': const _Col.text(nullable: true),
+      'recurrence_rule': const BackupColumn.text(nullable: true),
     },
   };
 
   /// Skema v3 menghubungkan transfer/tagihan ke ledger dan menandai transaksi
   /// baru yang berpengaruh pada saldo.
-  static final Map<String, Map<String, _Col>> v3 = {
+  static final Map<String, Map<String, BackupColumn>> v3 = {
     ...v2,
     'transactions': {
       ...v2['transactions']!,
-      'transfer_id': const _Col.text(nullable: true),
-      'bill_id': const _Col.text(nullable: true),
-      'affects_balance': const _Col.integer(),
+      'transfer_id': const BackupColumn.text(nullable: true),
+      'bill_id': const BackupColumn.text(nullable: true),
+      'affects_balance': const BackupColumn.integer(),
     },
   };
 
   /// Skema v4 menambahkan aturan pengulangan ke agenda.
-  static final Map<String, Map<String, _Col>> v4 = {
+  static final Map<String, Map<String, BackupColumn>> v4 = {
     ...v3,
     'events': {
       ...v3['events']!,
-      'recurrence_rule': const _Col.text(nullable: true),
+      'recurrence_rule': const BackupColumn.text(nullable: true),
     },
     'routines': {
       ...v3['routines']!,
-      'migrated_task_id': const _Col.text(nullable: true),
+      'migrated_task_id': const BackupColumn.text(nullable: true),
     },
   };
 
-  static final Map<String, Map<String, _Col>> v5 = {
+  static final Map<String, Map<String, BackupColumn>> v5 = {
     ...v4,
-    'tasks': {...v4['tasks']!, 'checklist_json': const _Col.text()},
+    'tasks': {...v4['tasks']!, 'checklist_json': const BackupColumn.text()},
     'saved_item_attachments': {
-      'id': const _Col.text(),
-      'saved_item_id': const _Col.text(),
-      'file_name': const _Col.text(),
-      'mime_type': const _Col.text(),
-      'content_base64': const _Col.text(),
-      'size_bytes': const _Col.integer(),
-      'created_at': const _Col.text(),
+      'id': const BackupColumn.text(),
+      'saved_item_id': const BackupColumn.text(),
+      'file_name': const BackupColumn.text(),
+      'mime_type': const BackupColumn.text(),
+      'content_base64': const BackupColumn.text(),
+      'size_bytes': const BackupColumn.integer(),
+      'created_at': const BackupColumn.text(),
     },
   };
 
@@ -366,7 +366,7 @@ class BackupValidator {
     );
   }
 
-  static Map<String, Map<String, _Col>> _specFor(int version) {
+  static Map<String, Map<String, BackupColumn>> _specFor(int version) {
     if (version == 1) return BackupSchema.v1;
     if (version == 2) return BackupSchema.v2;
     if (version == 3) return BackupSchema.v3;
@@ -381,7 +381,7 @@ class BackupValidator {
     String table,
     int index,
     Object? raw,
-    Map<String, _Col> columns,
+    Map<String, BackupColumn> columns,
   ) {
     if (raw is! Map) {
       throw ImportValidationException(
@@ -441,8 +441,9 @@ class BackupValidator {
 
   static void _checkUniqueIds(Map<String, List<Map<String, Object?>>> data) {
     for (final table in BackupSchema.tables) {
-      if (table == 'task_saved_items')
+      if (table == 'task_saved_items') {
         continue; // kunci gabungan, dicek di bawah
+      }
       final keyCol = table == 'app_settings' ? 'key' : 'id';
       final seen = <Object?>{};
       for (final row in data[table]!) {

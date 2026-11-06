@@ -604,18 +604,13 @@ class SearchAll {
 
 class GetDashboard {
   GetDashboard({
-    required EventRepository events,
-    required TaskRepository tasks,
-    required SavedItemRepository savedItems,
-    required FinanceRepository finance,
-    required RoutineRepository routines,
-    required SettingsRepository settings,
-  }) : _events = events,
-       _tasks = tasks,
-       _savedItems = savedItems,
-       _finance = finance,
-       _routines = routines,
-       _settings = settings;
+    required this._events,
+    required this._tasks,
+    required this._savedItems,
+    required this._finance,
+    required this._routines,
+    required this._settings,
+  });
 
   final EventRepository _events;
   final TaskRepository _tasks;

@@ -88,7 +88,7 @@ class InboxPage extends GetView<InboxController> {
               child: ListView.separated(
                 padding: const EdgeInsets.only(bottom: 96),
                 itemCount: items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (_, i) => SavedItemTile(
                   item: items[i],
                   onTap: () => Get.toNamed<dynamic>(

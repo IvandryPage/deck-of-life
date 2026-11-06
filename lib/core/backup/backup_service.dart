@@ -31,10 +31,9 @@ class RestoreResult {
 class BackupService {
   BackupService(
     this._db, {
-    Future<void> Function()? onRestored,
+    this._onRestored,
     Future<Directory> Function()? backupDirectory,
-  }) : _onRestored = onRestored,
-       _backupDirectory = backupDirectory ?? getApplicationDocumentsDirectory;
+  }) : _backupDirectory = backupDirectory ?? getApplicationDocumentsDirectory;
 
   final AppDatabase _db;
   final Future<void> Function()? _onRestored;

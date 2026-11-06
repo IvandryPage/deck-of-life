@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../core/errors/app_exception.dart';

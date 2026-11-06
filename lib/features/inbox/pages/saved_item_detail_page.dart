@@ -150,8 +150,9 @@ class _SavedItemDetailPageState extends State<SavedItemDetailPage> {
     }
     try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok)
+      if (!ok) {
         AppToast.show('No app is available to open this link.', isError: true);
+      }
     } catch (_) {
       AppToast.show(
         'Could not open the link. You may be offline.',

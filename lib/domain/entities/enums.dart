@@ -1,4 +1,5 @@
 /// Domain enums. `value` is persisted in SQLite and must match schema checks.
+library;
 
 enum SavedItemType {
   note('note', 'Note'),

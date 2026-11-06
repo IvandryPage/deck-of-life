@@ -66,7 +66,7 @@ class RoutinesPage extends GetView<RoutinesController> {
         return ListView.separated(
           padding: const EdgeInsets.only(bottom: 96),
           itemCount: list.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
+          separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, i) {
             final r = list[i];
             final due = r.isDue(now);

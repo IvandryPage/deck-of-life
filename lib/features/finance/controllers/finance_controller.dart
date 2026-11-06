@@ -15,18 +15,13 @@ enum FinanceInsightPeriod { month, last30Days, custom }
 
 class FinanceController extends GetxController with DataMutations {
   FinanceController({
-    required FinanceRepository finance,
-    required SettingsRepository settings,
-    required SaveBill saveBill,
-    required MarkBillPaid markBillPaid,
-    required DeleteBill deleteBill,
-    required DataRevision revision,
-  }) : _finance = finance,
-       _settings = settings,
-       _saveBill = saveBill,
-       _markBillPaid = markBillPaid,
-       _deleteBill = deleteBill,
-       _revision = revision;
+    required this._finance,
+    required this._settings,
+    required this._saveBill,
+    required this._markBillPaid,
+    required this._deleteBill,
+    required this._revision,
+  });
 
   final FinanceRepository _finance;
   final SettingsRepository _settings;
