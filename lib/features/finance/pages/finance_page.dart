@@ -1030,9 +1030,16 @@ class _TransactionInsights extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final net = month.income - month.expense;
-    final spentRatio = month.income <= 0
-        ? 1.0
-        : (month.expense / month.income).clamp(0.0, 1.0);
+    final maxFlow = month.income > month.expense ? month.income : month.expense;
+    final spentPercent = month.income <= 0
+        ? null
+        : (month.expense * 100 / month.income).round();
+    final netTone = net < 0
+        ? context.semantic.expense
+        : context.semantic.income;
+    final netContainer = net < 0
+        ? context.semantic.expenseContainer
+        : context.semantic.incomeContainer;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpace.gutter,
@@ -1045,44 +1052,92 @@ class _TransactionInsights extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _StatGrid(
-              items: [
-                _StatData(
-                  label: 'Income',
-                  value: Formatters.rupiah(month.income),
-                  icon: Icons.south_west,
-                  tone: _StatTone.income,
-                  caption: '${month.count} transactions',
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpace.lg),
+              decoration: BoxDecoration(
+                color: netContainer,
+                borderRadius: AppRadius.control,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    net < 0 ? Icons.trending_down : Icons.trending_up,
+                    color: netTone,
+                    size: AppSize.iconLg,
+                  ),
+                  const SizedBox(width: AppSpace.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NET CASH FLOW',
+                          style: context.text.labelMedium?.copyWith(
+                            color: netTone,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpace.xs),
+                        AmountText(
+                          '${net < 0 ? '-' : '+'}${Formatters.rupiah(net.abs())}',
+                          style: context.text.headlineSmall,
+                          color: netTone,
+                          align: TextAlign.start,
+                        ),
+                        const SizedBox(height: AppSpace.xs),
+                        Text(
+                          '${month.count} recorded transactions',
+                          style: context.text.bodySmall?.copyWith(
+                            color: context.scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpace.lg),
+            _CashFlowRow(
+              label: 'Income',
+              amount: month.income,
+              maximum: maxFlow,
+              color: context.semantic.income,
+              icon: Icons.south_west,
+            ),
+            const SizedBox(height: AppSpace.md),
+            _CashFlowRow(
+              label: 'Expenses',
+              amount: month.expense,
+              maximum: maxFlow,
+              color: context.semantic.expense,
+              icon: Icons.north_east,
+            ),
+            const SizedBox(height: AppSpace.md),
+            Row(
+              children: [
+                Icon(
+                  Icons.pie_chart_outline,
+                  size: AppSize.iconSm,
+                  color: context.scheme.onSurfaceVariant,
                 ),
-                _StatData(
-                  label: 'Expenses',
-                  value: Formatters.rupiah(month.expense),
-                  icon: Icons.north_east,
-                  tone: _StatTone.expense,
-                  caption: month.expense == 0
-                      ? 'No expenses'
-                      : '${month.byCategory.length} categories',
-                ),
-                _StatData(
-                  label: 'Net',
-                  value:
-                      '${net < 0 ? '-' : '+'}${Formatters.rupiah(net.abs())}',
-                  icon: net < 0 ? Icons.trending_down : Icons.trending_up,
-                  tone: net < 0 ? _StatTone.expense : _StatTone.income,
-                ),
-                _StatData(
-                  label: 'Spent',
-                  value: '${(spentRatio * 100).round()}%',
-                  icon: Icons.pie_chart_outline,
-                  tone: spentRatio > 0.9 ? _StatTone.warning : _StatTone.info,
-                  caption: month.income > 0
-                      ? 'of recorded income'
-                      : 'no recorded income',
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(
+                    spentPercent == null
+                        ? 'No recorded income to compare'
+                        : 'Spent $spentPercent% of recorded income',
+                    style: context.text.bodySmall?.copyWith(
+                      color: context.scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ],
             ),
             if (month.byCategory.isNotEmpty) ...[
               const SizedBox(height: AppSpace.md),
+              Text('Top spending categories', style: context.text.labelLarge),
+              const SizedBox(height: AppSpace.sm),
               _CategoryBars(byCategory: month.byCategory, total: month.expense),
             ],
           ],
@@ -1090,6 +1145,56 @@ class _TransactionInsights extends StatelessWidget {
       ),
     );
   });
+}
+
+class _CashFlowRow extends StatelessWidget {
+  const _CashFlowRow({
+    required this.label,
+    required this.amount,
+    required this.maximum,
+    required this.color,
+    required this.icon,
+  });
+
+  final String label;
+  final int amount;
+  final int maximum;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Icon(icon, size: AppSize.iconSm, color: color),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(child: Text(label, style: context.text.labelMedium)),
+          AmountText(
+            Formatters.rupiah(amount),
+            style: context.text.titleSmall,
+            align: TextAlign.end,
+          ),
+        ],
+      ),
+      const SizedBox(height: AppSpace.xs),
+      ClipRRect(
+        borderRadius: AppRadius.tag,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: amount / maximum),
+          duration: AppMotion.of(context, AppMotion.emphasized),
+          curve: AppMotion.enter,
+          builder: (_, value, _) => LinearProgressIndicator(
+            value: value,
+            minHeight: 8,
+            backgroundColor: context.scheme.surfaceContainerHigh,
+            color: color,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 enum _StatTone { neutral, income, expense, warning, info, urgent }

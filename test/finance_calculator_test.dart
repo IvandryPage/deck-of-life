@@ -1,20 +1,61 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:deck_of_life/domain/entities/entities.dart';
 import 'package:deck_of_life/domain/entities/enums.dart';
 import 'package:deck_of_life/domain/entities/logic.dart';
 
 import 'helpers.dart';
 
 void main() {
+  group('FinanceCalculator.monthSummary', () {
+    test('mengabaikan transfer antar-wallet dan transaksi di luar bulan', () {
+      final now = DateTime(2026, 11, 6);
+      final transactions = [
+        _transaction('income', 400000, TransactionDirection.income, now),
+        _transaction(
+          'food',
+          100000,
+          TransactionDirection.expense,
+          now,
+          category: 'Food',
+        ),
+        _transaction(
+          'transfer-out',
+          250000,
+          TransactionDirection.expense,
+          now,
+          transferId: 'transfer',
+        ),
+        _transaction(
+          'transfer-in',
+          250000,
+          TransactionDirection.income,
+          now,
+          transferId: 'transfer',
+        ),
+        _transaction(
+          'older',
+          900000,
+          TransactionDirection.expense,
+          DateTime(2026, 10, 31),
+        ),
+      ];
+
+      final summary = FinanceCalculator.monthSummary(transactions, now);
+
+      expect(summary.income, 400000);
+      expect(summary.expense, 100000);
+      expect(summary.count, 2);
+      expect(summary.byCategory, {'Food': 100000});
+    });
+  });
+
   group('FinanceCalculator.summarize', () {
     test('menjumlahkan saldo akun aktif saja', () {
-      final s = FinanceCalculator.summarize(
-        [
-          makeAccount('a', 1000000),
-          makeAccount('b', 250000),
-          makeAccount('c', 9999999, active: false),
-        ],
-        const [],
-      );
+      final s = FinanceCalculator.summarize([
+        makeAccount('a', 1000000),
+        makeAccount('b', 250000),
+        makeAccount('c', 9999999, active: false),
+      ], const []);
       expect(s.confirmedTotal, 1250000);
       expect(s.hasAccounts, isTrue);
     });
@@ -34,11 +75,12 @@ void main() {
 
     test('tagihan tidak terhitung dua kali setelah dibayar', () {
       final accounts = [makeAccount('a', 1000000)];
-      final before = FinanceCalculator.summarize(accounts, [makeBill('1', 400000)]);
-      final after = FinanceCalculator.summarize(
-        accounts,
-        [makeBill('1', 400000, status: BillStatus.paid)],
-      );
+      final before = FinanceCalculator.summarize(accounts, [
+        makeBill('1', 400000),
+      ]);
+      final after = FinanceCalculator.summarize(accounts, [
+        makeBill('1', 400000, status: BillStatus.paid),
+      ]);
       expect(before.estimatedFreeMoney, 600000);
       expect(after.estimatedFreeMoney, 1000000);
     });
@@ -58,13 +100,10 @@ void main() {
     });
 
     test('melacak waktu konfirmasi terbaru dan terlama', () {
-      final s = FinanceCalculator.summarize(
-        [
-          makeAccount('a', 1, confirmedAt: DateTime(2026, 10, 1)),
-          makeAccount('b', 1, confirmedAt: DateTime(2026, 10, 20)),
-        ],
-        const [],
-      );
+      final s = FinanceCalculator.summarize([
+        makeAccount('a', 1, confirmedAt: DateTime(2026, 10, 1)),
+        makeAccount('b', 1, confirmedAt: DateTime(2026, 10, 20)),
+      ], const []);
       expect(s.lastConfirmedAt, DateTime(2026, 10, 20));
       expect(s.oldestConfirmedAt, DateTime(2026, 10, 1));
     });
@@ -136,3 +175,21 @@ void main() {
     });
   });
 }
+
+MoneyTransaction _transaction(
+  String id,
+  int amount,
+  TransactionDirection direction,
+  DateTime occurredAt, {
+  String category = 'Other',
+  String? transferId,
+}) => MoneyTransaction(
+  id: id,
+  accountId: 'account',
+  amount: amount,
+  direction: direction,
+  category: category,
+  occurredAt: occurredAt,
+  createdAt: occurredAt,
+  transferId: transferId,
+);

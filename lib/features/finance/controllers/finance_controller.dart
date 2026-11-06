@@ -327,20 +327,6 @@ class FinanceController extends GetxController with DataMutations {
   /// Ringkasan bulan berjalan dari transaksi yang DICATAT (opsional), bukan
   /// seluruh arus kas; label di UI menyebutkan hal itu.
   ({int income, int expense, int count, Map<String, int> byCategory})
-  monthSummary(DateTime now) {
-    var inc = 0, exp = 0, count = 0;
-    final cats = <String, int>{};
-    for (final t in transactions) {
-      if (t.occurredAt.year != now.year || t.occurredAt.month != now.month)
-        continue;
-      count++;
-      if (t.direction == TransactionDirection.income) {
-        inc += t.amount;
-      } else {
-        exp += t.amount;
-        cats[t.category] = (cats[t.category] ?? 0) + t.amount;
-      }
-    }
-    return (income: inc, expense: exp, count: count, byCategory: cats);
-  }
+  monthSummary(DateTime now) =>
+      FinanceCalculator.monthSummary(transactions, now);
 }

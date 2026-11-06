@@ -48,6 +48,35 @@ class IncomeTarget {
 class FinanceCalculator {
   const FinanceCalculator._();
 
+  static ({int income, int expense, int count, Map<String, int> byCategory})
+  monthSummary(List<MoneyTransaction> transactions, DateTime now) {
+    var income = 0;
+    var expense = 0;
+    var count = 0;
+    final byCategory = <String, int>{};
+    for (final transaction in transactions) {
+      if (transaction.transferId != null ||
+          transaction.occurredAt.year != now.year ||
+          transaction.occurredAt.month != now.month) {
+        continue;
+      }
+      count++;
+      if (transaction.direction == TransactionDirection.income) {
+        income += transaction.amount;
+      } else {
+        expense += transaction.amount;
+        byCategory[transaction.category] =
+            (byCategory[transaction.category] ?? 0) + transaction.amount;
+      }
+    }
+    return (
+      income: income,
+      expense: expense,
+      count: count,
+      byCategory: byCategory,
+    );
+  }
+
   /// `confirmed_total` = jumlah saldo terkonfirmasi akun aktif;
   /// `known_unpaid_bills` = jumlah tagihan berstatus unpaid (tagihan paid/cancelled
   /// TIDAK dihitung, sehingga tidak terhitung dua kali).
