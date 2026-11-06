@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 
 import '../../domain/entities/entities.dart';
+import '../../domain/entities/recurrence.dart';
 
 class AndroidCalendarInfo {
   const AndroidCalendarInfo({
@@ -95,6 +96,38 @@ class AndroidCalendarBridge {
       await channel.invokeMethod<bool>('requestCalendarReadPermission') ??
       false;
 
+  Future<bool> hasWritePermission() async =>
+      await channel.invokeMethod<bool>('hasCalendarWritePermission') ?? false;
+
+  Future<bool> requestWritePermission() async =>
+      await channel.invokeMethod<bool>('requestCalendarWritePermission') ??
+      false;
+
+  Future<String?> createEvent({
+    required String calendarId,
+    required Event event,
+  }) async {
+    if (event.endsAt == null) return null;
+    return channel.invokeMethod<String>('createDeviceCalendarEvent', {
+      ..._eventArguments(event),
+      'calendarId': calendarId,
+    });
+  }
+
+  Future<bool> updateEvent(Event event) async {
+    if (event.endsAt == null) return false;
+    return await channel.invokeMethod<bool>('updateDeviceCalendarEvent', {
+          ..._eventArguments(event),
+        }) ??
+        false;
+  }
+
+  Future<bool> deleteEvent(String appEventId) async =>
+      await channel.invokeMethod<bool>('deleteDeviceCalendarEvent', {
+        'appEventId': appEventId,
+      }) ??
+      false;
+
   Future<List<AndroidCalendarInfo>> calendars() async {
     final rows =
         await channel.invokeListMethod<dynamic>('getDeviceCalendars') ??
@@ -117,4 +150,41 @@ class AndroidCalendarBridge {
         const [];
     return rows.whereType<Map>().map(AndroidCalendarEntry.fromMap).toList();
   }
+
+  Map<String, Object?> _eventArguments(Event event) => {
+    'appEventId': event.id,
+    'title': event.title,
+    'description': event.description,
+    'location': event.location,
+    'startMillis': event.startsAt.toLocal().millisecondsSinceEpoch,
+    'endMillis': event.endsAt!.toLocal().millisecondsSinceEpoch,
+    'allDay': event.isAllDay,
+    'recurrenceRule': _recurrenceRule(event),
+  };
+
+  String? _recurrenceRule(Event event) {
+    final rule = RecurrenceRule.tryParse(event.recurrenceRule);
+    if (rule == null) return null;
+    return switch (rule.kind) {
+      RecurrenceKind.daily => 'FREQ=DAILY',
+      RecurrenceKind.weekly => 'FREQ=WEEKLY',
+      RecurrenceKind.monthly =>
+        'FREQ=MONTHLY;BYMONTHDAY=${rule.anchorDay ?? event.startsAt.day}',
+      RecurrenceKind.interval =>
+        'FREQ=DAILY;INTERVAL=${rule.intervalDays ?? 1}',
+      RecurrenceKind.weekdays =>
+        'FREQ=WEEKLY;BYDAY=${rule.weekdays.map(_weekdayCode).join(',')}',
+    };
+  }
+
+  String _weekdayCode(int day) => switch (day) {
+    DateTime.monday => 'MO',
+    DateTime.tuesday => 'TU',
+    DateTime.wednesday => 'WE',
+    DateTime.thursday => 'TH',
+    DateTime.friday => 'FR',
+    DateTime.saturday => 'SA',
+    DateTime.sunday => 'SU',
+    _ => 'MO',
+  };
 }

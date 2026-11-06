@@ -182,6 +182,7 @@ class Event {
     this.recurrenceRule,
     this.externalCalendarName,
     this.isAllDay = false,
+    this.androidCalendarWriteSucceeded,
   });
 
   final String id;
@@ -196,6 +197,7 @@ class Event {
   final String? recurrenceRule;
   final String? externalCalendarName;
   final bool isAllDay;
+  final bool? androidCalendarWriteSucceeded;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -203,7 +205,11 @@ class Event {
 
   bool get isRecurring => recurrenceRule != null;
 
-  Event copyWith({DateTime? startsAt, DateTime? endsAt}) => Event(
+  Event copyWith({
+    DateTime? startsAt,
+    DateTime? endsAt,
+    bool? androidCalendarWriteSucceeded,
+  }) => Event(
     id: id,
     title: title,
     description: description,
@@ -216,6 +222,8 @@ class Event {
     recurrenceRule: recurrenceRule,
     externalCalendarName: externalCalendarName,
     isAllDay: isAllDay,
+    androidCalendarWriteSucceeded:
+        androidCalendarWriteSucceeded ?? this.androidCalendarWriteSucceeded,
     createdAt: createdAt,
     updatedAt: updatedAt,
   );

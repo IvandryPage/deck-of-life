@@ -254,8 +254,9 @@ class SaveEvent {
     if (event.endsAt != null && event.endsAt!.isBefore(event.startsAt)) {
       throw const ValidationException('End time cannot be before start time.');
     }
+    var saved = event;
     if (isNew) {
-      await _events.create(event);
+      saved = await _events.create(event);
     } else {
       await _events.update(event);
     }
@@ -269,7 +270,7 @@ class SaveEvent {
     } else if (!isNew) {
       await _coordinator.clearForTarget(ReminderTargetType.event, event.id);
     }
-    return SaveResult(event, outcome);
+    return SaveResult(saved, outcome);
   }
 }
 

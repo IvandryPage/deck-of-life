@@ -2,6 +2,7 @@ package id.deckoflife.app
 
 import android.Manifest
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.CalendarContract
@@ -25,6 +26,7 @@ class MainActivity : FlutterActivity() {
     private var pending: Map<String, String?>? = null
     private var initialHandled = false
     private var calendarPermissionResult: MethodChannel.Result? = null
+    private var calendarWritePermissionResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,6 +58,8 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "hasCalendarReadPermission" -> result.success(hasCalendarReadPermission())
                 "requestCalendarReadPermission" -> requestCalendarReadPermission(result)
+                "hasCalendarWritePermission" -> result.success(hasCalendarWritePermission())
+                "requestCalendarWritePermission" -> requestCalendarWritePermission(result)
                 "getDeviceCalendars" -> withCalendarReadPermission(result) {
                     result.success(readCalendars())
                 }
@@ -72,6 +76,30 @@ class MainActivity : FlutterActivity() {
                         result.success(
                             readCalendarEvents(calendarIds, startMillis, endMillis),
                         )
+                    }
+                }
+                "createDeviceCalendarEvent" -> withCalendarWritePermission(result) {
+                    val args = call.arguments as? Map<*, *>
+                    if (args == null) {
+                        result.error("invalid_event", "Event data is missing", null)
+                    } else {
+                        result.success(createCalendarEvent(args))
+                    }
+                }
+                "updateDeviceCalendarEvent" -> withCalendarWritePermission(result) {
+                    val args = call.arguments as? Map<*, *>
+                    if (args == null) {
+                        result.error("invalid_event", "Event data is missing", null)
+                    } else {
+                        result.success(updateCalendarEvent(args))
+                    }
+                }
+                "deleteDeviceCalendarEvent" -> withCalendarWritePermission(result) {
+                    val args = call.arguments as? Map<*, *>
+                    if (args == null) {
+                        result.error("invalid_event", "Event data is missing", null)
+                    } else {
+                        result.success(deleteCalendarEvent(args))
                     }
                 }
                 else -> result.notImplemented()
@@ -94,6 +122,23 @@ class MainActivity : FlutterActivity() {
         }
         calendarPermissionResult = result
         requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), CALENDAR_PERMISSION_REQUEST)
+    }
+
+    private fun hasCalendarWritePermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun requestCalendarWritePermission(result: MethodChannel.Result) {
+        if (hasCalendarWritePermission()) {
+            result.success(true)
+            return
+        }
+        if (calendarWritePermissionResult != null) {
+            result.error("permission_pending", "Calendar write permission request is already active", null)
+            return
+        }
+        calendarWritePermissionResult = result
+        requestPermissions(arrayOf(Manifest.permission.WRITE_CALENDAR), CALENDAR_WRITE_PERMISSION_REQUEST)
     }
 
     private fun withCalendarReadPermission(
@@ -166,12 +211,15 @@ class MainActivity : FlutterActivity() {
             CalendarContract.Instances.ALL_DAY,
         )
         val placeholders = List(calendarIds.size) { "?" }.joinToString(",")
+        val selectionArgs = (calendarIds + packageName).toTypedArray()
         val events = mutableListOf<Map<String, Any?>>()
         contentResolver.query(
             rangeUri,
             projection,
-            "${CalendarContract.Instances.CALENDAR_ID} IN ($placeholders)",
-            calendarIds.toTypedArray(),
+            "${CalendarContract.Instances.CALENDAR_ID} IN ($placeholders) " +
+                "AND (${CalendarContract.Instances.CUSTOM_APP_PACKAGE} IS NULL " +
+                "OR ${CalendarContract.Instances.CUSTOM_APP_PACKAGE} != ?)",
+            selectionArgs,
             "${CalendarContract.Instances.BEGIN} ASC",
         )?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_ID)
@@ -198,18 +246,109 @@ class MainActivity : FlutterActivity() {
         return events
     }
 
+    private fun createCalendarEvent(args: Map<*, *>): String? {
+        val calendarId = args["calendarId"] as? String ?: return null
+        val appEventId = args["appEventId"] as? String ?: return null
+        val values = eventValues(args, includeCalendarId = true).apply {
+            put(CalendarContract.Events.CALENDAR_ID, calendarId.toLongOrNull())
+            put(CalendarContract.Events.CUSTOM_APP_PACKAGE, packageName)
+            put(CalendarContract.Events.CUSTOM_APP_URI, appEventUri(appEventId))
+        }
+        return contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            ?.lastPathSegment
+    }
+
+    private fun updateCalendarEvent(args: Map<*, *>): Boolean {
+        val appEventId = args["appEventId"] as? String ?: return false
+        val values = eventValues(args, includeCalendarId = false)
+        val changed = contentResolver.update(
+            CalendarContract.Events.CONTENT_URI,
+            values,
+            "${CalendarContract.Events.CUSTOM_APP_PACKAGE} = ? AND " +
+                "${CalendarContract.Events.CUSTOM_APP_URI} = ?",
+            arrayOf(packageName, appEventUri(appEventId)),
+        )
+        return changed > 0
+    }
+
+    private fun deleteCalendarEvent(args: Map<*, *>): Boolean {
+        val appEventId = args["appEventId"] as? String ?: return false
+        val deleted = contentResolver.delete(
+            CalendarContract.Events.CONTENT_URI,
+            "${CalendarContract.Events.CUSTOM_APP_PACKAGE} = ? AND " +
+                "${CalendarContract.Events.CUSTOM_APP_URI} = ?",
+            arrayOf(packageName, appEventUri(appEventId)),
+        )
+        return deleted > 0
+    }
+
+    private fun eventValues(args: Map<*, *>, includeCalendarId: Boolean): ContentValues {
+        val title = args["title"] as? String ?: error("Event title is missing")
+        val start = (args["startMillis"] as? Number)?.toLong()
+            ?: error("Event start time is missing")
+        val end = (args["endMillis"] as? Number)?.toLong()
+            ?: error("Event end time is missing")
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.TITLE, title)
+            put(CalendarContract.Events.DTSTART, start)
+            put(CalendarContract.Events.DTEND, end)
+            put(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
+            put(CalendarContract.Events.ALL_DAY, if (args["allDay"] == true) 1 else 0)
+            val description = args["description"] as? String
+            if (description.isNullOrBlank()) putNull(CalendarContract.Events.DESCRIPTION)
+            else put(CalendarContract.Events.DESCRIPTION, description)
+            val location = args["location"] as? String
+            if (location.isNullOrBlank()) putNull(CalendarContract.Events.EVENT_LOCATION)
+            else put(CalendarContract.Events.EVENT_LOCATION, location)
+            val recurrenceRule = args["recurrenceRule"] as? String
+            if (recurrenceRule == null) putNull(CalendarContract.Events.RRULE)
+            else put(CalendarContract.Events.RRULE, recurrenceRule)
+        }
+        if (includeCalendarId) {
+            val calendarId = args["calendarId"] as? String
+                ?: error("Calendar id is missing")
+            values.put(CalendarContract.Events.CALENDAR_ID, calendarId.toLongOrNull())
+        }
+        return values
+    }
+
+    private fun appEventUri(eventId: String): String =
+        "deck-of-life://events/$eventId"
+
+    private fun withCalendarWritePermission(
+        result: MethodChannel.Result,
+        action: () -> Unit,
+    ) {
+        if (!hasCalendarWritePermission()) {
+            result.error("permission_denied", "Calendar write permission has not been granted", null)
+            return
+        }
+        try {
+            action()
+        } catch (error: Exception) {
+            result.error("calendar_write_failed", error.message, null)
+        }
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray,
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != CALENDAR_PERMISSION_REQUEST) return
-        val result = calendarPermissionResult ?: return
-        calendarPermissionResult = null
-        result.success(
-            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED,
-        )
+        if (requestCode != CALENDAR_PERMISSION_REQUEST &&
+            requestCode != CALENDAR_WRITE_PERMISSION_REQUEST
+        ) return
+        val result = when (requestCode) {
+            CALENDAR_PERMISSION_REQUEST -> calendarPermissionResult.also {
+                calendarPermissionResult = null
+            }
+            CALENDAR_WRITE_PERMISSION_REQUEST -> calendarWritePermissionResult.also {
+                calendarWritePermissionResult = null
+            }
+            else -> null
+        } ?: return
+        result.success(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -238,5 +377,6 @@ class MainActivity : FlutterActivity() {
         const val CHANNEL = "deck_of_life/share"
         const val CALENDAR_CHANNEL = "deck_of_life/android_calendar"
         const val CALENDAR_PERMISSION_REQUEST = 7402
+        const val CALENDAR_WRITE_PERMISSION_REQUEST = 7403
     }
 }

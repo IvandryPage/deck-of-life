@@ -1,3 +1,4 @@
+import 'package:deck_of_life/core/calendar/android_calendar_bridge.dart';
 import 'package:get/get.dart';
 
 import '../../../core/sharing/share_intake_service.dart';
@@ -21,6 +22,7 @@ class ShellBinding extends Bindings {
       AndroidCalendarController(
         settings: Get.find<SettingsRepository>(),
         revision: Get.find<DataRevision>(),
+        bridge: Get.find<AndroidCalendarBridge>(),
       ),
     );
     Get.put<ShellController>(

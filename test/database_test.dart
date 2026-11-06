@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deck_of_life/core/backup/backup_service.dart';
+import 'package:deck_of_life/core/calendar/android_calendar_bridge.dart';
 import 'package:deck_of_life/core/database/app_database.dart';
 import 'package:deck_of_life/core/errors/app_exception.dart';
 import 'package:deck_of_life/core/utils/date_time_utils.dart';
@@ -11,10 +13,12 @@ import 'package:deck_of_life/data/repositories/finance_repository_impl.dart';
 import 'package:deck_of_life/data/repositories/reminder_repository_impl.dart';
 import 'package:deck_of_life/data/repositories/routine_repository_impl.dart';
 import 'package:deck_of_life/data/repositories/saved_item_repository_impl.dart';
+import 'package:deck_of_life/data/repositories/settings_repository_impl.dart';
 import 'package:deck_of_life/data/repositories/task_repository_impl.dart';
 import 'package:deck_of_life/domain/entities/entities.dart';
 import 'package:deck_of_life/domain/entities/enums.dart';
 import 'package:deck_of_life/domain/entities/logic.dart';
+import 'package:deck_of_life/domain/repositories/repositories.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
@@ -24,6 +28,7 @@ import 'helpers.dart';
 void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppDatabase db;
   late SavedItemRepositoryImpl items;
@@ -290,6 +295,70 @@ void main() {
   });
 
   group('Event', () {
+    test(
+      'event baru dimirror; update/delete hanya memakai marker Deck',
+      () async {
+        const channel = MethodChannel('test/event_write');
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final methods = <String>[];
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          methods.add(call.method);
+          if (call.method == 'hasCalendarWritePermission') return true;
+          if (call.method == 'createDeviceCalendarEvent') {
+            final args = call.arguments as Map<Object?, Object?>;
+            expect(args['calendarId'], 'google-calendar');
+            expect(args['appEventId'], 'deck-event');
+            return 'android-event-id';
+          }
+          if (call.method == 'updateDeviceCalendarEvent') {
+            expect((call.arguments as Map)['appEventId'], 'deck-event');
+            return true;
+          }
+          if (call.method == 'deleteDeviceCalendarEvent') {
+            expect((call.arguments as Map)['appEventId'], 'deck-event');
+            return true;
+          }
+          return null;
+        });
+        final settings = SettingsRepositoryImpl(db);
+        await settings.set(
+          SettingKeys.androidCalendarWriteId,
+          'google-calendar',
+        );
+        final repository = EventRepositoryImpl(
+          db,
+          settings: settings,
+          calendarBridge: AndroidCalendarBridge(channel: channel),
+        );
+        final start = DateTime(2026, 11, 6, 10);
+        final event = Event(
+          id: 'deck-event',
+          title: 'Review',
+          startsAt: start,
+          endsAt: start.add(const Duration(hours: 1)),
+          createdAt: t0,
+          updatedAt: t0,
+        );
+
+        await repository.create(event);
+        await repository.update(
+          event.copyWith(startsAt: start.add(const Duration(minutes: 15))),
+        );
+        await repository.delete(event.id);
+
+        expect(methods, [
+          'hasCalendarWritePermission',
+          'createDeviceCalendarEvent',
+          'hasCalendarWritePermission',
+          'updateDeviceCalendarEvent',
+          'hasCalendarWritePermission',
+          'deleteDeviceCalendarEvent',
+        ]);
+      },
+    );
+
     test('listBetween memakai batas hari lokal', () async {
       Event ev(String id, DateTime at) =>
           Event(id: id, title: id, startsAt: at, createdAt: t0, updatedAt: t0);

@@ -23,6 +23,8 @@ class AndroidCalendarController extends GetxController {
   final RxList<AndroidCalendarInfo> calendars = <AndroidCalendarInfo>[].obs;
   final RxList<String> selectedCalendarIds = <String>[].obs;
   final RxBool hasReadPermission = false.obs;
+  final RxBool hasWritePermission = false.obs;
+  final RxnString writeCalendarId = RxnString();
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
 
@@ -52,7 +54,11 @@ class AndroidCalendarController extends GetxController {
           selectedCalendarIds.assignAll(decoded.whereType<String>());
         }
       }
+      writeCalendarId.value = await _settings.get(
+        SettingKeys.androidCalendarWriteId,
+      );
       hasReadPermission.value = await _bridge.hasReadPermission();
+      hasWritePermission.value = await _bridge.hasWritePermission();
       if (hasReadPermission.value) {
         calendars.assignAll(await _bridge.calendars());
       }
@@ -115,6 +121,38 @@ class AndroidCalendarController extends GetxController {
     final selection = ids.where(availableIds.contains).toSet().toList();
     await _saveSelection(selection);
     _revision.bump();
+  }
+
+  Future<bool> setWriteCalendar(String? id) async {
+    errorMessage.value = null;
+    if (id == null || id.isEmpty) {
+      await _settings.remove(SettingKeys.androidCalendarWriteId);
+      writeCalendarId.value = null;
+      _revision.bump();
+      return true;
+    }
+    AndroidCalendarInfo? calendar;
+    for (final item in calendars) {
+      if (item.id == id) {
+        calendar = item;
+        break;
+      }
+    }
+    if (calendar == null || !calendar.isGoogleAccount) {
+      errorMessage.value = 'Choose a calendar from a Google account.';
+      return false;
+    }
+    if (!hasWritePermission.value) {
+      hasWritePermission.value = await _bridge.requestWritePermission();
+    }
+    if (!hasWritePermission.value) {
+      errorMessage.value = 'Calendar write permission was not granted.';
+      return false;
+    }
+    await _settings.set(SettingKeys.androidCalendarWriteId, id);
+    writeCalendarId.value = id;
+    _revision.bump();
+    return true;
   }
 
   Future<void> _saveSelection(List<String> ids) async {

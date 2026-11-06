@@ -1,4 +1,6 @@
+import '../../core/calendar/android_calendar_bridge.dart';
 import '../../core/database/app_database.dart';
+import '../../core/errors/app_exception.dart';
 import '../../core/search/search_service.dart';
 import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/entities.dart';
@@ -9,14 +11,38 @@ import '../datasources/local/reminder_cleanup.dart';
 import '../models/row_mappers.dart';
 
 class EventRepositoryImpl implements EventRepository {
-  EventRepositoryImpl(this._db);
+  EventRepositoryImpl(this._db, {this._settings, this._calendarBridge});
 
   final AppDatabase _db;
+  final SettingsRepository? _settings;
+  final AndroidCalendarBridge? _calendarBridge;
 
   @override
   Future<Event> create(Event event) => dbGuard(() async {
     await _db.raw.insert('events', EventRow.toRow(event));
-    return event;
+    final targetCalendarId = await _settings?.get(
+      SettingKeys.androidCalendarWriteId,
+    );
+    final bridge = _calendarBridge;
+    bool? writeSucceeded;
+    if (targetCalendarId != null && event.endsAt != null && bridge != null) {
+      try {
+        if (await bridge.hasWritePermission()) {
+          writeSucceeded =
+              await bridge.createEvent(
+                calendarId: targetCalendarId,
+                event: event,
+              ) !=
+              null;
+        } else {
+          writeSucceeded = false;
+        }
+      } catch (error, stackTrace) {
+        writeSucceeded = false;
+        AppLog.error('event.device_calendar.create', error, stackTrace);
+      }
+    }
+    return event.copyWith(androidCalendarWriteSucceeded: writeSucceeded);
   });
 
   @override
@@ -36,16 +62,41 @@ class EventRepositoryImpl implements EventRepository {
       ..remove('created_at')
       ..['updated_at'] = DateTimeUtils.nowIso();
     await _db.raw.update('events', row, where: 'id = ?', whereArgs: [event.id]);
+    final bridge = _calendarBridge;
+    if (bridge != null && event.endsAt != null) {
+      try {
+        if (await bridge.hasWritePermission()) await bridge.updateEvent(event);
+      } catch (error, stackTrace) {
+        AppLog.error('event.device_calendar.update', error, stackTrace);
+      }
+    }
   });
 
   @override
-  Future<NotificationIds> delete(String id) => dbGuard(
-    () => _db.raw.transaction((txn) async {
+  Future<NotificationIds> delete(String id) => dbGuard(() async {
+    final existing = await _db.raw.query(
+      'events',
+      columns: ['id'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (existing.isEmpty) return <int>[];
+    final notificationIds = await _db.raw.transaction((txn) async {
       final ids = await deleteRemindersFor(txn, ReminderTargetType.event, id);
       await txn.delete('events', where: 'id = ?', whereArgs: [id]);
       return ids;
-    }),
-  );
+    });
+    final bridge = _calendarBridge;
+    if (bridge != null) {
+      try {
+        if (await bridge.hasWritePermission()) await bridge.deleteEvent(id);
+      } catch (error, stackTrace) {
+        AppLog.error('event.device_calendar.delete', error, stackTrace);
+      }
+    }
+    return notificationIds;
+  });
 
   /// Teks ISO dengan offset berbeda tidak selalu urut benar secara leksikal,
   /// jadi query memakai margin +-1 hari lalu difilter tepat di Dart.
@@ -130,9 +181,11 @@ class EventRepositoryImpl implements EventRepository {
 
   static DateTime? _shiftEnd(DateTime? end, DateTime from, DateTime to) {
     if (end == null) return null;
-    final dayOffset = DateTime.utc(to.year, to.month, to.day)
-        .difference(DateTime.utc(from.year, from.month, from.day))
-        .inDays;
+    final dayOffset = DateTime.utc(
+      to.year,
+      to.month,
+      to.day,
+    ).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
     return DateTime(
       end.year,
       end.month,

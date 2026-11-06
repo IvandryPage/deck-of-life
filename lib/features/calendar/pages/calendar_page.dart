@@ -89,7 +89,7 @@ class _AndroidCalendarControl extends GetView<AndroidCalendarController> {
         title: const Text('Connect Android calendars'),
         content: const Text(
           'Deck of Life will read event titles, times, and locations from calendars you select. '
-          'Events stay read-only here and are never changed in Google Calendar. '
+          'They stay read-only unless you separately choose a Google calendar for new Deck events. '
           'Make sure your Google account is synced in Android settings.',
         ),
         actions: [
@@ -111,62 +111,126 @@ class _AndroidCalendarControl extends GetView<AndroidCalendarController> {
     await controller.refreshCalendars();
     if (!context.mounted) return;
     final selected = controller.selectedCalendarIds.toSet();
-    final result = await showModalBottomSheet<List<String>>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ListTile(title: Text('Calendars to show')),
-              if (controller.calendars.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(AppSpace.lg),
-                  child: Text(
-                    'No visible calendars found. Sync your Google account in Android settings and try again.',
-                  ),
-                ),
-              for (final calendar in controller.calendars)
-                CheckboxListTile(
-                  value: selected.contains(calendar.id),
-                  title: Text(calendar.name),
-                  subtitle: Text(
-                    [
-                      if (calendar.accountType?.toLowerCase().contains(
-                            'google',
-                          ) ??
-                          false)
-                        'Google',
-                      if (calendar.accountName?.isNotEmpty ?? false)
-                        calendar.accountName!,
-                    ].join(' · '),
-                  ),
-                  onChanged: (checked) => setState(() {
-                    if (checked == true) {
-                      selected.add(calendar.id);
-                    } else {
-                      selected.remove(calendar.id);
-                    }
-                  }),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpace.md),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () =>
-                        Navigator.of(context).pop(selected.toList()),
-                    child: const Text('Save selection'),
-                  ),
+    final initialWriteId =
+        controller.calendars.any(
+          (calendar) =>
+              calendar.id == controller.writeCalendarId.value &&
+              calendar.isGoogleAccount,
+        )
+        ? controller.writeCalendarId.value!
+        : '';
+    var writeCalendarId = initialWriteId;
+    final result =
+        await showModalBottomSheet<
+          ({List<String> selectedIds, String? writeCalendarId})
+        >(
+          context: context,
+          showDragHandle: true,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setState) => SafeArea(
+              child: SizedBox(
+                height: MediaQuery.sizeOf(context).height * 0.78,
+                child: Column(
+                  children: [
+                    const ListTile(title: Text('Calendars to show')),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          if (controller.calendars.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(AppSpace.lg),
+                              child: Text(
+                                'No visible calendars found. Sync your Google account in Android settings and try again.',
+                              ),
+                            ),
+                          for (final calendar in controller.calendars)
+                            CheckboxListTile(
+                              value: selected.contains(calendar.id),
+                              title: Text(calendar.name),
+                              subtitle: Text(
+                                [
+                                  if (calendar.isGoogleAccount) 'Google',
+                                  if (calendar.accountName?.isNotEmpty ?? false)
+                                    calendar.accountName!,
+                                ].join(' · '),
+                              ),
+                              onChanged: (checked) => setState(() {
+                                if (checked == true) {
+                                  selected.add(calendar.id);
+                                } else {
+                                  selected.remove(calendar.id);
+                                }
+                              }),
+                            ),
+                          const Divider(),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpace.lg,
+                              vertical: AppSpace.sm,
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              initialValue: writeCalendarId,
+                              decoration: const InputDecoration(
+                                labelText: 'Send new Deck events to',
+                                helperText:
+                                    'Only Google calendars sync automatically to Google.',
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: '',
+                                  child: Text(
+                                    'Do not write to Android calendar',
+                                  ),
+                                ),
+                                for (final calendar
+                                    in controller.calendars.where(
+                                      (calendar) => calendar.isGoogleAccount,
+                                    ))
+                                  DropdownMenuItem(
+                                    value: calendar.id,
+                                    child: Text(
+                                      calendar.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                              ],
+                              onChanged: (value) =>
+                                  setState(() => writeCalendarId = value ?? ''),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpace.md),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () => Navigator.of(context).pop((
+                            selectedIds: selected.toList(),
+                            writeCalendarId: writeCalendarId.isEmpty
+                                ? null
+                                : writeCalendarId,
+                          )),
+                          child: const Text('Save selection'),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-    if (result != null) await controller.setSelectedCalendars(result);
+        );
+    if (result != null) {
+      await controller.setSelectedCalendars(result.selectedIds);
+      if (result.writeCalendarId != controller.writeCalendarId.value ||
+          (result.writeCalendarId != null &&
+              !controller.hasWritePermission.value)) {
+        await controller.setWriteCalendar(result.writeCalendarId);
+      }
+    }
   }
 
   @override
@@ -175,6 +239,13 @@ class _AndroidCalendarControl extends GetView<AndroidCalendarController> {
     final selectedNames = controller.selectedCalendars
         .map((calendar) => calendar.name)
         .join(', ');
+    String? writeCalendarName;
+    for (final calendar in controller.calendars) {
+      if (calendar.id == controller.writeCalendarId.value) {
+        writeCalendarName = calendar.name;
+        break;
+      }
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpace.gutter,
@@ -195,7 +266,7 @@ class _AndroidCalendarControl extends GetView<AndroidCalendarController> {
               Expanded(
                 child: Text(
                   connected
-                      ? 'Android calendars · $selectedNames'
+                      ? 'Android · $selectedNames'
                       : controller.hasReadPermission.value
                       ? 'No calendars selected'
                       : 'Google calendars are not connected',
@@ -222,6 +293,15 @@ class _AndroidCalendarControl extends GetView<AndroidCalendarController> {
               ),
             ],
           ),
+          if (controller.writeCalendarId.value != null)
+            Text(
+              controller.hasWritePermission.value
+                  ? 'New Deck events go to ${writeCalendarName ?? 'Google Calendar'}.'
+                  : 'Calendar write permission is needed to send new Deck events.',
+              style: context.text.bodySmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+              ),
+            ),
           if (controller.errorMessage.value != null)
             Align(
               alignment: Alignment.centerLeft,

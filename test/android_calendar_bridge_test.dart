@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deck_of_life/core/calendar/android_calendar_bridge.dart';
+import 'package:deck_of_life/domain/entities/entities.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -89,5 +90,55 @@ void main() {
 
     expect(events, isEmpty);
     expect(called, isFalse);
+  });
+
+  test('write operations carry Deck event IDs and recurrence rules', () async {
+    final methods = <String>[];
+    final start = DateTime(2026, 11, 6, 10);
+    final event = Event(
+      id: 'deck-event-1',
+      title: 'Weekly review',
+      startsAt: start,
+      endsAt: start.add(const Duration(hours: 1)),
+      recurrenceRule: 'weekdays:1,3',
+      createdAt: start,
+      updatedAt: start,
+    );
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      methods.add(call.method);
+      if (call.method == 'createDeviceCalendarEvent') {
+        final args = call.arguments as Map<Object?, Object?>;
+        expect(args['appEventId'], event.id);
+        expect(args['calendarId'], 'google-calendar');
+        expect(args['recurrenceRule'], 'FREQ=WEEKLY;BYDAY=MO,WE');
+        return 'provider-event-id';
+      }
+      if (call.method == 'updateDeviceCalendarEvent') {
+        expect((call.arguments as Map)['appEventId'], event.id);
+        return true;
+      }
+      if (call.method == 'deleteDeviceCalendarEvent') {
+        expect((call.arguments as Map)['appEventId'], event.id);
+        return true;
+      }
+      if (call.method == 'requestCalendarWritePermission') return true;
+      return false;
+    });
+
+    final bridge = AndroidCalendarBridge(channel: channel);
+
+    expect(await bridge.requestWritePermission(), isTrue);
+    expect(
+      await bridge.createEvent(calendarId: 'google-calendar', event: event),
+      'provider-event-id',
+    );
+    expect(await bridge.updateEvent(event), isTrue);
+    expect(await bridge.deleteEvent(event.id), isTrue);
+    expect(methods, [
+      'requestCalendarWritePermission',
+      'createDeviceCalendarEvent',
+      'updateDeviceCalendarEvent',
+      'deleteDeviceCalendarEvent',
+    ]);
   });
 }

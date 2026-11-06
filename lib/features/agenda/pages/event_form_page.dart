@@ -12,6 +12,7 @@ import '../../../domain/entities/enums.dart';
 import '../../../domain/entities/recurrence.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/usecases.dart';
+import '../../calendar/controllers/android_calendar_controller.dart';
 
 class EventFormPage extends StatefulWidget {
   const EventFormPage({super.key});
@@ -109,6 +110,15 @@ class _EventFormPageState extends State<EventFormPage> {
       return;
     }
     if (!valid) return;
+    final writeCalendarId =
+        Get.find<AndroidCalendarController>().writeCalendarId.value;
+    if (_existing == null && writeCalendarId != null && _end == null) {
+      setState(
+        () => _timeError =
+            'Add an end time to send this event to Google Calendar.',
+      );
+      return;
+    }
     setState(() {
       _timeError = null;
       _saving = true;
@@ -139,8 +149,15 @@ class _EventFormPageState extends State<EventFormPage> {
       );
       Get.find<DataRevision>().bump();
       final msg = result.reminder?.message;
+      final writeFailed = result.value.androidCalendarWriteSucceeded == false;
       Get.back<void>();
-      AppToast.show(msg ?? 'Event saved', isError: msg != null);
+      AppToast.show(
+        msg ??
+            (writeFailed
+                ? 'Event saved in Deck, but could not be copied to Android Calendar.'
+                : 'Event saved'),
+        isError: msg != null || writeFailed,
+      );
     } catch (err, st) {
       AppLog.error('event.save', err, st);
       if (mounted) setState(() => _saving = false);
@@ -161,6 +178,8 @@ class _EventFormPageState extends State<EventFormPage> {
   @override
   Widget build(BuildContext context) {
     final isNew = _existing == null;
+    final writeCalendarId =
+        Get.find<AndroidCalendarController>().writeCalendarId.value;
     return FormPage(
       title: isNew ? 'New event' : 'Edit event',
       formKey: _formKey,
@@ -186,6 +205,13 @@ class _EventFormPageState extends State<EventFormPage> {
             _timeError = null;
           }),
         ),
+        if (isNew && writeCalendarId != null)
+          Text(
+            'New events will also be added to the selected Google calendar. Set an end time to sync.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         if (_timeError != null)
           Text(
             _timeError!,

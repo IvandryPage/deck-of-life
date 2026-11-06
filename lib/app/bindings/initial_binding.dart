@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../core/backup/backup_service.dart';
+import '../../core/calendar/android_calendar_bridge.dart';
 import '../../core/database/app_database.dart';
 import '../../core/notifications/notification_service.dart';
 import '../../core/sharing/share_intake_service.dart';
@@ -33,11 +34,16 @@ class InitialBinding extends Bindings {
 
     final savedItems = SavedItemRepositoryImpl(db);
     final tasks = TaskRepositoryImpl(db);
-    final events = EventRepositoryImpl(db);
     final reminders = ReminderRepositoryImpl(db);
     final finance = FinanceRepositoryImpl(db);
     final routines = RoutineRepositoryImpl(db);
     final settings = SettingsRepositoryImpl(db);
+    final androidCalendar = const AndroidCalendarBridge();
+    final events = EventRepositoryImpl(
+      db,
+      settings: settings,
+      calendarBridge: androidCalendar,
+    );
 
     Get.put<SavedItemRepository>(savedItems, permanent: true);
     Get.put<TaskRepository>(tasks, permanent: true);
@@ -46,6 +52,7 @@ class InitialBinding extends Bindings {
     Get.put<FinanceRepository>(finance, permanent: true);
     Get.put<RoutineRepository>(routines, permanent: true);
     Get.put<SettingsRepository>(settings, permanent: true);
+    Get.put<AndroidCalendarBridge>(androidCalendar, permanent: true);
 
     final coordinator = ReminderCoordinator(
       reminders: reminders,
