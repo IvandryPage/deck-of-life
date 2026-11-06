@@ -34,13 +34,14 @@ class HomePage extends GetView<HomeController> {
         onRetry: controller.load,
       );
     }
+    final externalCalendarEvents = controller.externalCalendarEvents.toList();
     return RefreshIndicator(
       onRefresh: controller.load,
       child: ListView(
         padding: const EdgeInsets.only(bottom: AppSpace.xl),
         children: [
           const _Header(),
-          _TodaySection(data: data),
+          _TodaySection(data: data, externalEvents: externalCalendarEvents),
           _DeadlinesSection(data: data),
           const _NotesSection(),
         ],
@@ -126,68 +127,242 @@ class _Header extends StatelessWidget {
 }
 
 class _TodaySection extends StatelessWidget {
-  const _TodaySection({required this.data});
+  const _TodaySection({required this.data, required this.externalEvents});
 
   final DashboardData data;
+  final List<Event> externalEvents;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpace.gutter,
-      AppSpace.sm,
-      AppSpace.gutter,
-      AppSpace.sm,
-    ),
-    child: SectionCard(
-      title: 'TODAY',
-      trailing: IconButton(
-        tooltip: 'Add event',
-        onPressed: () => Get.toNamed<dynamic>(Routes.eventForm),
-        icon: const Icon(Icons.add),
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final plan = DailyPlanAdvisor.build(
+      now: now,
+      events: [...data.todayEvents, ...externalEvents],
+      activeTasks: data.activeTasks,
+    );
+    final events = [...data.todayEvents, ...externalEvents]
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    final emphasizedIds = {
+      if (plan.currentEvent != null) plan.currentEvent!.id,
+      if (plan.nextEvent != null) plan.nextEvent!.id,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.gutter,
+        AppSpace.sm,
+        AppSpace.gutter,
+        AppSpace.sm,
       ),
-      child: data.todayEvents.isEmpty
-          ? ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Text('🗓️', style: TextStyle(fontSize: 24)),
-              title: const Text('Nothing scheduled today'),
-              trailing: TextButton(
-                onPressed: () => Get.toNamed<dynamic>(Routes.eventForm),
-                child: const Text('Add event'),
-              ),
-            )
-          : Column(
-              children: [
-                for (final event in data.todayEvents)
-                  ListTile(
-                    dense: true,
-                    minTileHeight: AppSize.tap,
-                    contentPadding: EdgeInsets.zero,
-                    leading: SizedBox(
-                      width: 52,
-                      child: Text(
-                        Formatters.time(event.startsAt),
-                        style: context.text.titleSmall?.copyWith(
-                          fontFeatures: AppText.tabular,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      event.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: event.location == null
-                        ? null
-                        : Text(event.location!),
-                    onTap: () => Get.toNamed<dynamic>(
-                      Routes.eventForm,
-                      arguments: event,
-                    ),
+      child: SectionCard(
+        title: 'TODAY PLAN',
+        trailing: IconButton(
+          tooltip: 'Add event',
+          onPressed: () => Get.toNamed<dynamic>(Routes.eventForm),
+          icon: const Icon(Icons.add),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (plan.currentEvent != null)
+              _PlanEventRow(event: plan.currentEvent!, label: 'In progress')
+            else if (plan.nextEvent != null)
+              _PlanEventRow(event: plan.nextEvent!, label: 'Next up'),
+            for (final event in events)
+              if (!emphasizedIds.contains(event.id))
+                _PlanEventRow(event: event, label: 'Later today'),
+            if (events.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+                child: Text(
+                  'No timed agenda today. Time availability is not estimated.',
+                  style: context.text.bodySmall?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
                   ),
+                ),
+              ),
+            const Divider(height: AppSpace.xl),
+            Row(
+              children: [
+                Icon(
+                  Icons.hourglass_bottom,
+                  size: AppSize.iconSm,
+                  color: context.scheme.primary,
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(
+                    _availabilityLabel(plan),
+                    style: context.text.labelLarge,
+                  ),
+                ),
               ],
             ),
+            if (plan.focusTask != null) ...[
+              const SizedBox(height: AppSpace.sm),
+              TaskTile(
+                task: plan.focusTask!,
+                dense: true,
+                onToggleDone: () =>
+                    Get.find<HomeController>().completeTask(plan.focusTask!.id),
+                onTap: () => Get.toNamed<dynamic>(
+                  Routes.taskDetail,
+                  arguments: plan.focusTask!.id,
+                ),
+              ),
+            ] else if (plan.availableMinutes != null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpace.xs),
+                child: Text(
+                  'No active task with a recorded duration fits this window.',
+                  style: context.text.bodySmall?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else if (plan.nearestTask != null)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.flag_outlined),
+                title: Text(
+                  plan.nearestTask!.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  plan.nearestTask!.estimatedMinutes == null
+                      ? 'Closest task · duration not estimated'
+                      : 'Closest task · ${plan.nearestTask!.estimatedMinutes} min',
+                ),
+                onTap: () => Get.toNamed<dynamic>(
+                  Routes.taskDetail,
+                  arguments: plan.nearestTask!.id,
+                ),
+              ),
+            const Divider(height: AppSpace.xl),
+            _FinancialNeedRow(reality: data.reality),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _availabilityLabel(DailyPlan plan) {
+  final minutes = plan.availableMinutes;
+  if (minutes != null) {
+    final duration = minutes >= 60
+        ? '${minutes ~/ 60}h ${minutes % 60}m'
+        : '$minutes min';
+    return plan.windowAfterCurrentEvent
+        ? '$duration open after this event'
+        : '$duration until the next event';
+  }
+  if (plan.currentEvent != null) {
+    return plan.currentEvent!.endsAt == null
+        ? 'Current event has no end time; free time is unknown'
+        : 'No later event; available time is not configured';
+  }
+  return 'No upcoming event; available time is not configured';
+}
+
+class _PlanEventRow extends StatelessWidget {
+  const _PlanEventRow({required this.event, required this.label});
+
+  final Event event;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    dense: true,
+    minTileHeight: AppSize.tap,
+    contentPadding: EdgeInsets.zero,
+    leading: SizedBox(
+      width: 52,
+      child: Text(
+        event.isAllDay ? 'All day' : Formatters.time(event.startsAt),
+        style: context.text.titleSmall?.copyWith(fontFeatures: AppText.tabular),
+      ),
     ),
+    title: Text(event.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: Text(
+      [
+        label,
+        if (event.externalCalendarName != null) event.externalCalendarName!,
+        if (event.location != null) event.location!,
+        if (event.isDeviceCalendarEvent) 'Read-only',
+      ].join(' · '),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    ),
+    onTap: event.isDeviceCalendarEvent
+        ? null
+        : () => Get.toNamed<dynamic>(Routes.eventForm, arguments: event),
   );
+}
+
+class _FinancialNeedRow extends StatelessWidget {
+  const _FinancialNeedRow({required this.reality});
+
+  final RealityCheck reality;
+
+  @override
+  Widget build(BuildContext context) {
+    final needsAttention = reality.overdueTotal > 0 || reality.fundingGap > 0;
+    final message = !reality.hasAccounts
+        ? 'Add wallet balances to estimate bill coverage.'
+        : reality.overdueTotal > 0
+        ? '${Formatters.rupiah(reality.overdueTotal)} in overdue bills.'
+        : reality.fundingGap > 0
+        ? 'Estimated shortfall ${Formatters.rupiah(reality.fundingGap)} for bills within ${reality.horizonDays} days.'
+        : reality.obligationsInHorizon > 0
+        ? 'Confirmed balance covers bills due within ${reality.horizonDays} days.'
+        : 'No bills due within the next ${reality.horizonDays} days.';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          needsAttention
+              ? Icons.account_balance_wallet
+              : Icons.savings_outlined,
+          size: AppSize.iconSm,
+          color: needsAttention
+              ? context.semantic.warning
+              : context.semantic.income,
+        ),
+        const SizedBox(width: AppSpace.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('MONEY CHECK', style: context.text.labelMedium),
+              const SizedBox(height: AppSpace.xs),
+              Text(
+                message,
+                style: context.text.bodySmall?.copyWith(
+                  color: context.scheme.onSurfaceVariant,
+                ),
+              ),
+              if (reality.target.status == IncomeTargetStatus.needsWorkdays)
+                Text(
+                  'Daily target unavailable until workdays are set.',
+                  style: context.text.bodySmall?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'View bill projection',
+          onPressed: () => Get.toNamed<dynamic>(Routes.financeProjection),
+          icon: const Icon(Icons.arrow_forward),
+        ),
+      ],
+    );
+  }
 }
 
 class _DeadlinesSection extends StatelessWidget {
@@ -198,9 +373,17 @@ class _DeadlinesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+    final dailyPlan = DailyPlanAdvisor.build(
+      now: now,
+      events: data.todayEvents,
+      activeTasks: data.activeTasks,
+    );
+    final highlightedTaskId =
+        dailyPlan.focusTask?.id ?? dailyPlan.nearestTask?.id;
     final entries = <({DateTime due, Task? task, Bill? bill})>[
       for (final task in data.nearestDeadlines)
-        if (task.dueAt != null) (due: task.dueAt!, task: task, bill: null),
+        if (task.dueAt != null && task.id != highlightedTaskId)
+          (due: task.dueAt!, task: task, bill: null),
       for (final bill in data.nearestBills)
         (due: bill.dueAt, task: null, bill: bill),
     ]..sort((a, b) => a.due.compareTo(b.due));

@@ -196,4 +196,5 @@ class SettingKeys {
   static const lastBackupAt = 'last_backup_at';
   static const firstUseAt = 'first_use_at';
   static const closeAfterShare = 'close_after_share'; // '1' (default) / '0'
+  static const androidCalendarIds = 'android_calendar_ids';
 }

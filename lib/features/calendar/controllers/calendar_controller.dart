@@ -9,6 +9,7 @@ import '../../../domain/entities/entities.dart';
 import '../../../domain/entities/enums.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/usecases.dart';
+import 'android_calendar_controller.dart';
 
 enum CalendarViewMode { month, week }
 
@@ -20,14 +21,16 @@ class CalendarController extends GetxController with DataMutations {
     this._tasks,
     this._finance,
     this._deleteEvent,
-    this._revision,
-  );
+    this._revision, [
+    this._androidCalendar,
+  ]);
 
   final EventRepository _events;
   final TaskRepository _tasks;
   final FinanceRepository _finance;
   final DeleteEvent _deleteEvent;
   final DataRevision _revision;
+  final AndroidCalendarController? _androidCalendar;
 
   final Rx<DateTime> month = _firstOfMonth(DateTime.now()).obs;
   final Rx<DateTime> selected = DateTimeUtils.startOfDay(DateTime.now()).obs;
@@ -65,6 +68,8 @@ class CalendarController extends GetxController with DataMutations {
           : DateTime(m.year, m.month + 1, 1);
 
       final events = await _events.listBetween(start, end);
+      final deviceEvents =
+          await _androidCalendar?.eventsBetween(start, end) ?? const <Event>[];
       final activeTasks = await _tasks.list(
         statuses: {
           TaskStatus.needsReview,
@@ -76,8 +81,15 @@ class CalendarController extends GetxController with DataMutations {
 
       bool inRange(DateTime d) => !d.isBefore(start) && d.isBefore(end);
       final e = <DateTime, List<Event>>{};
-      for (final x in events) {
-        e.putIfAbsent(DateTimeUtils.startOfDay(x.startsAt), () => []).add(x);
+      for (final x in [...events, ...deviceEvents]) {
+        final eventDay = DateTimeUtils.startOfDay(x.startsAt);
+        final overlapsRange =
+            x.isDeviceCalendarEvent &&
+            x.startsAt.isBefore(start) &&
+            x.endsAt != null &&
+            x.endsAt!.isAfter(start);
+        final key = overlapsRange ? DateTimeUtils.startOfDay(start) : eventDay;
+        if (inRange(key)) e.putIfAbsent(key, () => []).add(x);
       }
       final t = <DateTime, List<Task>>{};
       for (final x in activeTasks) {

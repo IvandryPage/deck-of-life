@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/errors/app_exception.dart';
 import '../../../core/state/data_revision.dart';
+import '../../../core/utils/date_time_utils.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/state/data_mutations.dart';
 import '../../../domain/entities/entities.dart';
@@ -11,6 +12,7 @@ import '../../../domain/entities/logic.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/capture.dart';
 import '../../../domain/usecases/usecases.dart';
+import '../../calendar/controllers/android_calendar_controller.dart';
 
 class HomeController extends GetxController with DataMutations {
   HomeController(
@@ -19,8 +21,9 @@ class HomeController extends GetxController with DataMutations {
     this._saveItem,
     this._savedItems,
     this._changeStatus,
-    this._reschedule,
-  );
+    this._reschedule, [
+    this._androidCalendar,
+  ]);
 
   final SaveSavedItem _saveItem;
   final SavedItemRepository _savedItems;
@@ -29,8 +32,10 @@ class HomeController extends GetxController with DataMutations {
 
   final GetDashboard _getDashboard;
   final DataRevision _revision;
+  final AndroidCalendarController? _androidCalendar;
 
   final Rxn<DashboardData> data = Rxn<DashboardData>();
+  final RxList<Event> externalCalendarEvents = <Event>[].obs;
   final RxList<SavedItem> recentNotes = <SavedItem>[].obs;
   final RxString notesQuery = ''.obs;
   final RxBool isLoading = true.obs;
@@ -53,6 +58,14 @@ class HomeController extends GetxController with DataMutations {
     if (data.value == null) isLoading.value = true;
     errorMessage.value = null;
     try {
+      final now = DateTime.now();
+      externalCalendarEvents.assignAll(
+        await _androidCalendar?.eventsBetween(
+              DateTimeUtils.startOfDay(now),
+              DateTimeUtils.startOfNextDay(now),
+            ) ??
+            const <Event>[],
+      );
       data.value = await _getDashboard();
       await searchRecentNotes(notesQuery.value);
     } catch (e, st) {

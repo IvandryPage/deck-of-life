@@ -6,6 +6,7 @@ import '../../../domain/repositories/repositories.dart';
 import '../../../domain/usecases/reminder_coordinator.dart';
 import '../../../domain/usecases/usecases.dart';
 import '../../calendar/controllers/calendar_controller.dart';
+import '../../calendar/controllers/android_calendar_controller.dart';
 import '../../finance/controllers/finance_controller.dart';
 import '../../home/controllers/home_controller.dart';
 import '../../inbox/controllers/inbox_controller.dart';
@@ -16,8 +17,17 @@ import '../controllers/shell_controller.dart';
 class ShellBinding extends Bindings {
   @override
   void dependencies() {
+    final androidCalendar = Get.put<AndroidCalendarController>(
+      AndroidCalendarController(
+        settings: Get.find<SettingsRepository>(),
+        revision: Get.find<DataRevision>(),
+      ),
+    );
     Get.put<ShellController>(
-      ShellController(Get.find<ShareIntakeService>(), Get.find<ReminderCoordinator>()),
+      ShellController(
+        Get.find<ShareIntakeService>(),
+        Get.find<ReminderCoordinator>(),
+      ),
     );
     Get.put<HomeController>(
       HomeController(
@@ -27,6 +37,7 @@ class ShellBinding extends Bindings {
         Get.find<SavedItemRepository>(),
         Get.find<ChangeTaskStatus>(),
         Get.find<RescheduleTask>(),
+        androidCalendar,
       ),
     );
     Get.put<InboxController>(
@@ -47,6 +58,7 @@ class ShellBinding extends Bindings {
         Get.find<FinanceRepository>(),
         Get.find<DeleteEvent>(),
         Get.find<DataRevision>(),
+        androidCalendar,
       ),
     );
     Get.put<FinanceController>(

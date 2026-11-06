@@ -8,6 +8,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../domain/entities/entities.dart';
 import '../../shell/controllers/shell_controller.dart';
+import '../controllers/android_calendar_controller.dart';
 import '../controllers/calendar_controller.dart';
 
 const List<String> _weekdays = [
@@ -54,6 +55,7 @@ class CalendarPage extends GetView<CalendarController> {
           padding: const EdgeInsets.only(bottom: AppSpace.listBottom),
           children: [
             const _MonthHeader(),
+            const _AndroidCalendarControl(),
             const _MonthGrid(),
             const SizedBox(height: AppSpace.sm),
             _DayHeader(day: day),
@@ -75,6 +77,165 @@ class CalendarPage extends GetView<CalendarController> {
       );
     });
   }
+}
+
+class _AndroidCalendarControl extends GetView<AndroidCalendarController> {
+  const _AndroidCalendarControl();
+
+  Future<void> _connect(BuildContext context) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Connect Android calendars'),
+        content: const Text(
+          'Deck of Life will read event titles, times, and locations from calendars you select. '
+          'Events stay read-only here and are never changed in Google Calendar. '
+          'Make sure your Google account is synced in Android settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (approved == true) await controller.connect();
+  }
+
+  Future<void> _manage(BuildContext context) async {
+    await controller.refreshCalendars();
+    if (!context.mounted) return;
+    final selected = controller.selectedCalendarIds.toSet();
+    final result = await showModalBottomSheet<List<String>>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(title: Text('Calendars to show')),
+              if (controller.calendars.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(AppSpace.lg),
+                  child: Text(
+                    'No visible calendars found. Sync your Google account in Android settings and try again.',
+                  ),
+                ),
+              for (final calendar in controller.calendars)
+                CheckboxListTile(
+                  value: selected.contains(calendar.id),
+                  title: Text(calendar.name),
+                  subtitle: Text(
+                    [
+                      if (calendar.accountType?.toLowerCase().contains(
+                            'google',
+                          ) ??
+                          false)
+                        'Google',
+                      if (calendar.accountName?.isNotEmpty ?? false)
+                        calendar.accountName!,
+                    ].join(' · '),
+                  ),
+                  onChanged: (checked) => setState(() {
+                    if (checked == true) {
+                      selected.add(calendar.id);
+                    } else {
+                      selected.remove(calendar.id);
+                    }
+                  }),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpace.md),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () =>
+                        Navigator.of(context).pop(selected.toList()),
+                    child: const Text('Save selection'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (result != null) await controller.setSelectedCalendars(result);
+  }
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+    final connected = controller.isConnected;
+    final selectedNames = controller.selectedCalendars
+        .map((calendar) => calendar.name)
+        .join(', ');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.gutter,
+        0,
+        AppSpace.gutter,
+        AppSpace.xs,
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(
+                connected ? Icons.sync : Icons.calendar_month_outlined,
+                size: AppSize.iconSm,
+                color: context.scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: Text(
+                  connected
+                      ? 'Android calendars · $selectedNames'
+                      : controller.hasReadPermission.value
+                      ? 'No calendars selected'
+                      : 'Google calendars are not connected',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.bodySmall?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: controller.isLoading.value
+                    ? null
+                    : connected || controller.hasReadPermission.value
+                    ? () => _manage(context)
+                    : () => _connect(context),
+                child: Text(
+                  controller.isLoading.value
+                      ? 'Loading'
+                      : connected || controller.hasReadPermission.value
+                      ? 'Manage'
+                      : 'Connect',
+                ),
+              ),
+            ],
+          ),
+          if (controller.errorMessage.value != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                controller.errorMessage.value!,
+                style: context.text.bodySmall?.copyWith(
+                  color: context.scheme.error,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  });
 }
 
 class _MonthHeader extends GetView<CalendarController> {
@@ -458,6 +619,33 @@ class _EventRow extends GetView<CalendarController> {
     final over = (e.endsAt ?? e.startsAt).isBefore(now);
     final ongoing = !e.startsAt.isAfter(now) && !over && e.endsAt != null;
     final scheme = context.scheme;
+    if (e.isDeviceCalendarEvent) {
+      return ListTile(
+        minTileHeight: AppSize.tap + 8,
+        leading: SizedBox(
+          width: 52,
+          child: Text(
+            e.isAllDay ? 'All day' : Formatters.time(e.startsAt),
+            style: context.text.labelLarge?.copyWith(
+              fontFeatures: AppText.tabular,
+            ),
+          ),
+        ),
+        title: Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          [
+            e.externalCalendarName ?? 'Android calendar',
+            if (e.location != null) e.location!,
+            if (e.endsAt != null && !e.isAllDay)
+              'Until ${Formatters.time(e.endsAt!)}',
+          ].join(' · '),
+        ),
+        trailing: const Tooltip(
+          message: 'Read-only Android calendar event',
+          child: Icon(Icons.lock_outline, size: AppSize.iconSm),
+        ),
+      );
+    }
     return Dismissible(
       key: ValueKey('ev-${e.id}-${e.startsAt.toIso8601String()}'),
       direction: DismissDirection.endToStart,

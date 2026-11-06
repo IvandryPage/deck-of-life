@@ -180,6 +180,8 @@ class Event {
     this.linkedTaskId,
     this.linkedSavedItemId,
     this.recurrenceRule,
+    this.externalCalendarName,
+    this.isAllDay = false,
   });
 
   final String id;
@@ -192,8 +194,12 @@ class Event {
   final String? linkedTaskId;
   final String? linkedSavedItemId;
   final String? recurrenceRule;
+  final String? externalCalendarName;
+  final bool isAllDay;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  bool get isDeviceCalendarEvent => externalCalendarName != null;
 
   bool get isRecurring => recurrenceRule != null;
 
@@ -208,6 +214,8 @@ class Event {
     linkedTaskId: linkedTaskId,
     linkedSavedItemId: linkedSavedItemId,
     recurrenceRule: recurrenceRule,
+    externalCalendarName: externalCalendarName,
+    isAllDay: isAllDay,
     createdAt: createdAt,
     updatedAt: updatedAt,
   );

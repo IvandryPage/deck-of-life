@@ -686,6 +686,7 @@ class GetDashboard {
         unpaid,
       )..sort((a, b) => a.dueAt.compareTo(b.dueAt))).take(3).toList(),
       overdueTasks: overdue,
+      activeTasks: TaskOrdering.sorted(activeTasks, n),
       reality: reality,
       needsReviewItemCount: reviewItems,
       needsReviewTaskCount: reviewTasks,

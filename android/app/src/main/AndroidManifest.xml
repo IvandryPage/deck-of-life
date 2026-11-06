@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Menjadwalkan ulang pengingat setelah perangkat restart. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Read-only access to calendars explicitly selected by the user. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
 
     <application
         android:label="Deck of Life"

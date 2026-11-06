@@ -180,4 +180,94 @@ void main() {
       expect(Reschedule.shift(null, now, 2), DateTime(2026, 10, 12, 23, 59));
     });
   });
+
+  group('DailyPlanAdvisor', () {
+    final now = DateTime(2026, 11, 6, 9);
+
+    Event event(
+      String id,
+      DateTime start,
+      DateTime? end, {
+      bool allDay = false,
+    }) => Event(
+      id: id,
+      title: id,
+      startsAt: start,
+      endsAt: end,
+      isAllDay: allDay,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    Task task(String id, int? minutes, DateTime due) => Task(
+      id: id,
+      title: id,
+      estimatedMinutes: minutes,
+      dueAt: due,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    test('memilih task yang muat sebelum agenda berikutnya', () {
+      final plan = DailyPlanAdvisor.build(
+        now: now,
+        events: [event('class', DateTime(2026, 11, 6, 10), null)],
+        activeTasks: [
+          task('too-long', 70, DateTime(2026, 11, 6, 12)),
+          task('fits', 45, DateTime(2026, 11, 6, 13)),
+        ],
+      );
+
+      expect(plan.availableMinutes, 60);
+      expect(plan.focusTask!.id, 'fits');
+      expect(plan.nextEvent!.id, 'class');
+    });
+
+    test(
+      'tidak mengarang waktu tersedia untuk agenda aktif tanpa waktu selesai',
+      () {
+        final plan = DailyPlanAdvisor.build(
+          now: now,
+          events: [event('ongoing', DateTime(2026, 11, 6, 8), null)],
+          activeTasks: [task('task', 20, DateTime(2026, 11, 6, 12))],
+        );
+
+        expect(plan.currentEvent!.id, 'ongoing');
+        expect(plan.availableMinutes, isNull);
+        expect(plan.focusTask, isNull);
+      },
+    );
+
+    test('all-day Android calendar event tidak menutup waktu terukur', () {
+      final plan = DailyPlanAdvisor.build(
+        now: now,
+        events: [
+          event(
+            'holiday',
+            DateTime(2026, 11, 6),
+            DateTime(2026, 11, 7),
+            allDay: true,
+          ),
+          event('meeting', DateTime(2026, 11, 6, 10), null),
+        ],
+        activeTasks: [task('fits', 45, DateTime(2026, 11, 6, 13))],
+      );
+
+      expect(plan.nextEvent!.id, 'meeting');
+      expect(plan.availableMinutes, 60);
+      expect(plan.focusTask!.id, 'fits');
+    });
+
+    test('tanpa agenda tidak menyatakan hari sebagai waktu luang terukur', () {
+      final plan = DailyPlanAdvisor.build(
+        now: now,
+        events: const [],
+        activeTasks: [task('nearest', null, DateTime(2026, 11, 7))],
+      );
+
+      expect(plan.availableMinutes, isNull);
+      expect(plan.focusTask, isNull);
+      expect(plan.nearestTask!.id, 'nearest');
+    });
+  });
 }

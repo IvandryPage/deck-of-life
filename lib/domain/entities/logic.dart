@@ -596,6 +596,7 @@ class DashboardData {
     required this.needsReviewTaskCount,
     required this.nextRoutines,
     required this.dueRoutineCount,
+    this.activeTasks = const [],
     this.nextAction,
     this.backupReminder = false,
   });
@@ -604,6 +605,7 @@ class DashboardData {
 
   /// Maksimal tiga tugas aktif bertenggat terdekat (termasuk yang terlambat).
   final List<Task> nearestDeadlines;
+  final List<Task> activeTasks;
   final List<Bill> nearestBills;
 
   /// Semua tugas aktif yang sudah lewat deadline, paling lama terlewat dulu.
@@ -621,4 +623,104 @@ class DashboardData {
   int get overdueTaskCount => overdueTasks.length;
   int get overdueBillCount => reality.overdueCount;
   int get needsReviewTotal => needsReviewItemCount + needsReviewTaskCount;
+}
+
+class DailyPlan {
+  const DailyPlan({
+    required this.currentEvent,
+    required this.nextEvent,
+    required this.availableMinutes,
+    required this.windowAfterCurrentEvent,
+    required this.focusTask,
+    required this.nearestTask,
+  });
+
+  final Event? currentEvent;
+  final Event? nextEvent;
+  final int? availableMinutes;
+  final bool windowAfterCurrentEvent;
+  final Task? focusTask;
+  final Task? nearestTask;
+}
+
+class DailyPlanAdvisor {
+  const DailyPlanAdvisor._();
+
+  static DailyPlan build({
+    required DateTime now,
+    required List<Event> events,
+    required List<Task> activeTasks,
+  }) {
+    final orderedEvents = events.where((event) => !event.isAllDay).toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    final currentEvents = orderedEvents
+        .where(
+          (event) =>
+              !event.startsAt.isAfter(now) &&
+              (event.endsAt == null || event.endsAt!.isAfter(now)),
+        )
+        .toList();
+    final upcomingEvents = orderedEvents
+        .where((event) => event.startsAt.isAfter(now))
+        .toList();
+
+    int? availableMinutes;
+    var windowAfterCurrentEvent = false;
+    Event? currentEvent;
+    Event? nextEvent;
+    if (currentEvents.isNotEmpty) {
+      currentEvent = currentEvents.first;
+      if (currentEvents.every((event) => event.endsAt != null) &&
+          upcomingEvents.isNotEmpty) {
+        final currentEnd = currentEvents
+            .map((event) => event.endsAt!)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+        for (final event in upcomingEvents) {
+          if (event.startsAt.isAfter(currentEnd)) {
+            nextEvent = event;
+            break;
+          }
+        }
+        if (nextEvent != null) {
+          final gap = nextEvent.startsAt.difference(currentEnd).inMinutes;
+          if (gap > 0) {
+            availableMinutes = gap;
+            windowAfterCurrentEvent = true;
+          }
+        }
+      }
+    } else if (upcomingEvents.isNotEmpty) {
+      nextEvent = upcomingEvents.first;
+      final gap = nextEvent.startsAt.difference(now).inMinutes;
+      if (gap > 0) availableMinutes = gap;
+    }
+
+    final orderedTasks = TaskOrdering.sorted(
+      activeTasks.where((task) => task.isActive),
+      now,
+    );
+    final nearestTask = orderedTasks.isEmpty ? null : orderedTasks.first;
+    Task? focusTask;
+    if (availableMinutes != null) {
+      for (final task in orderedTasks) {
+        final estimate = task.estimatedMinutes;
+        if (task.status != TaskStatus.needsReview &&
+            estimate != null &&
+            estimate > 0 &&
+            estimate <= availableMinutes) {
+          focusTask = task;
+          break;
+        }
+      }
+    }
+
+    return DailyPlan(
+      currentEvent: currentEvent,
+      nextEvent: nextEvent,
+      availableMinutes: availableMinutes,
+      windowAfterCurrentEvent: windowAfterCurrentEvent,
+      focusTask: focusTask,
+      nearestTask: nearestTask,
+    );
+  }
 }
